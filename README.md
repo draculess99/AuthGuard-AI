@@ -291,6 +291,7 @@ RAG output is advisory. Current payer-specific policy must be independently veri
 
 ![RAG and XGBoost placeholder](docs/images/05-rag.png)
 
+```text
 Patient / Authorization Request
             ↓
      Data Validation
@@ -319,6 +320,7 @@ Patient / Authorization Request
       Recommendation + Explanation
                      ↓
           Human Review / Escalation
+```
 
 ---
 
