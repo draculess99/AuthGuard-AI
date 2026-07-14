@@ -19,6 +19,9 @@ GROQ_MODELS = [
 ]
 
 GEMINI_MODELS = [
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+    "gemini-1.0-pro",
     "gemini-3.5-flash",
     "gemini-3.1-pro-preview",
     "gemini-2.5-flash",
@@ -33,7 +36,7 @@ def get_model_choices(provider: str) -> list[str]:
         configured = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
         choices = [configured, *GROQ_MODELS]
     elif normalized.startswith("gemini"):
-        configured = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+        configured = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
         choices = [configured, *GEMINI_MODELS]
     else:
         return []
@@ -57,7 +60,7 @@ def local_explanation(context: dict[str, Any]) -> str:
     )
 
 
-def call_groq(prompt: str, model: str | None = None) -> tuple[str, str]:
+def call_groq(prompt: str, model: str | None = None) -> tuple[str, str, dict[str, int] | None]:
     api_key = os.getenv("GROQ_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("GROQ_API_KEY is not configured")
@@ -84,10 +87,17 @@ def call_groq(prompt: str, model: str | None = None) -> tuple[str, str]:
         timeout=45,
     )
     response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"].strip(), selected_model
+    payload = response.json()
+    usage = payload.get("usage", {})
+    usage_dict = {
+        "prompt_tokens": usage.get("prompt_tokens", 0),
+        "completion_tokens": usage.get("completion_tokens", 0),
+        "total_tokens": usage.get("total_tokens", 0),
+    } if usage else None
+    return payload["choices"][0]["message"]["content"].strip(), selected_model, usage_dict
 
 
-def call_gemini(prompt: str, model: str | None = None) -> tuple[str, str]:
+def call_gemini(prompt: str, model: str | None = None) -> tuple[str, str, dict[str, int] | None]:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not configured")
@@ -112,14 +122,20 @@ def call_gemini(prompt: str, model: str | None = None) -> tuple[str, str]:
     )
     response.raise_for_status()
     payload = response.json()
-    return payload["candidates"][0]["content"]["parts"][0]["text"].strip(), selected_model
+    usage = payload.get("usageMetadata", {})
+    usage_dict = {
+        "prompt_tokens": usage.get("promptTokenCount", 0),
+        "completion_tokens": usage.get("candidatesTokenCount", 0),
+        "total_tokens": usage.get("totalTokenCount", 0),
+    } if usage else None
+    return payload["candidates"][0]["content"]["parts"][0]["text"].strip(), selected_model, usage_dict
 
 
 def generate_explanation(
     provider: str,
     context: dict[str, Any],
     model: str | None = None,
-) -> tuple[str, str | None, str]:
+) -> tuple[str, str | None, str, dict[str, int] | None]:
     normalized_provider = (provider or "Local Expert System").lower()
     prompt = (
         "Create a detailed committee explanation from this immutable structured result. "
@@ -128,16 +144,17 @@ def generate_explanation(
     )
     try:
         if normalized_provider.startswith("groq"):
-            text, selected_model = call_groq(prompt, model=model)
-            return text, None, selected_model
+            text, selected_model, usage = call_groq(prompt, model=model)
+            return text, None, selected_model, usage
         if normalized_provider.startswith("gemini"):
-            text, selected_model = call_gemini(prompt, model=model)
-            return text, None, selected_model
-        return local_explanation(context), None, "deterministic-local"
+            text, selected_model, usage = call_gemini(prompt, model=model)
+            return text, None, selected_model, usage
+        return local_explanation(context), None, "deterministic-local", None
     except Exception as exc:
         fallback_model = model or "unavailable"
         return (
             local_explanation(context),
             f"LLM provider unavailable; local explanation used: {exc}",
             fallback_model,
+            None,
         )

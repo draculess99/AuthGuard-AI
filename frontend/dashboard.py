@@ -5,11 +5,17 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=ROOT / ".env", override=True)
 
 import pandas as pd
 import streamlit as st
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -69,11 +75,31 @@ h1,h2,h3 { letter-spacing:.02em; }
 @keyframes pulse { 50% { opacity:.35; transform:scale(.72); } }
 .console { border:1px solid #1d3a5a; background:#020711; color:#82f5ff; border-radius:14px; padding:14px; font-family:Consolas,monospace; font-size:.76rem; min-height:190px; box-shadow:inset 0 0 25px rgba(45,226,230,.04); }
 .console-line { padding:3px 0; border-bottom:1px dashed rgba(55,102,132,.18); }
-.radar { width:86px; height:86px; border:2px solid rgba(45,226,230,.4); border-radius:50%; position:relative; margin:8px auto 14px; box-shadow:0 0 28px rgba(45,226,230,.16); }
-.radar:before,.radar:after { content:""; position:absolute; inset:12px; border:1px solid rgba(45,226,230,.22); border-radius:50%; }
-.radar:after { inset:31px; }
-.radar-sweep { position:absolute; left:50%; top:50%; width:43px; height:2px; transform-origin:left center; background:linear-gradient(90deg,var(--cyan),transparent); animation:spin 1.2s linear infinite; box-shadow:0 0 8px var(--cyan); }
+.ai-core-container { position:relative; width:120px; height:120px; margin:10px auto 20px; display:flex; align-items:center; justify-content:center; }
+.ai-core-container.inactive { opacity:0.35; filter:grayscale(30%); }
+.ai-core-container.inactive *, .ai-core-container.inactive .core-pulse:after { animation-play-state:paused !important; }
+.core-pulse { position:relative; width:46px; height:46px; background:radial-gradient(circle,rgba(56,189,248,0.2) 0%,transparent 70%); border-radius:50%; display:flex; align-items:center; justify-content:center; animation:pulse-glow 2s ease-in-out infinite alternate; z-index:10; }
+.core-pulse:after { content:''; position:absolute; width:100%; height:100%; border-radius:50%; box-shadow:inset 0 0 8px rgba(168,85,247,0.5); animation:pulse-ring 2s ease-in-out infinite alternate; }
+@keyframes pulse-glow { 0% { transform:scale(0.95); box-shadow:0 0 10px rgba(56,189,248,0.4); } 100% { transform:scale(1.05); box-shadow:0 0 20px rgba(56,189,248,0.8),0 0 30px rgba(168,85,247,0.4); } }
+@keyframes pulse-ring { 0% { transform:scale(0.8); opacity:0.5; } 100% { transform:scale(1.1); opacity:1; } }
+.core-icon { width:24px; height:24px; fill:none; stroke:var(--cyan); stroke-width:1.5; filter:drop-shadow(0 0 4px var(--cyan)); z-index:2; }
+.orbit-ring { position:absolute; top:50%; left:50%; border-radius:50%; transform-origin:center; }
+.ring-1 { width:80px; height:80px; margin-top:-40px; margin-left:-40px; border:1px dashed rgba(56,189,248,0.4); animation:spin 10s linear infinite; }
+.ring-2 { width:120px; height:120px; margin-top:-60px; margin-left:-60px; border:1px solid rgba(168,85,247,0.2); animation:spin 18s linear infinite reverse; }
+.agent-node { position:absolute; width:20px; height:20px; background:var(--panel2); border:1px solid var(--blue); border-radius:50%; box-shadow:0 0 6px rgba(56,189,248,0.5); z-index:5; font-size:10px; display:flex; align-items:center; justify-content:center; }
+.ring-2 .agent-node { border-color:var(--pink); box-shadow:0 0 8px rgba(255,60,172,0.4); }
 @keyframes spin { to { transform:rotate(360deg); } }
+@keyframes counter-spin-2 { to { transform:rotate(360deg); } }
+@keyframes counter-spin-1 { to { transform:rotate(-360deg); } }
+.ring-2 .counter-spin { animation:counter-spin-2 18s linear infinite; display:flex; width:100%; height:100%; align-items:center; justify-content:center; }
+.ring-1 .counter-spin { animation:counter-spin-1 10s linear infinite; display:flex; width:100%; height:100%; align-items:center; justify-content:center; }
+.n1 { top:-10px; left:calc(50% - 10px); }
+.n2 { bottom:-10px; left:calc(50% - 10px); }
+.n3 { top:calc(50% - 10px); left:-10px; }
+.n4 { top:calc(50% - 10px); right:-10px; }
+.data-particle { position:absolute; width:4px; height:4px; background:var(--cyan); border-radius:50%; box-shadow:0 0 6px var(--cyan); }
+.p2 { bottom:15%; right:15%; }
+.p3 { bottom:15%; left:15%; }
 .top-spin { position:fixed; right:28px; top:74px; z-index:9998; width:52px; height:52px; border-radius:50%; border:3px solid rgba(79,140,255,.18); border-top-color:var(--cyan); border-right-color:var(--pink); animation:spin .75s linear infinite; box-shadow:0 0 22px rgba(45,226,230,.25); }
 .top-spin-label { position:fixed; right:22px; top:130px; z-index:9998; color:#9cecff; font:700 .62rem/1.1 Consolas,monospace; letter-spacing:.08em; }
 .agent-card { border:1px solid #1f3859; background:linear-gradient(180deg,#0d192b,#091321); border-radius:16px; padding:15px; margin-bottom:10px; }
@@ -162,7 +188,30 @@ def spinner_html(stage: str) -> str:
 
 
 def console_html(logs: list[str], active: bool) -> str:
-    radar = '<div class="radar"><div class="radar-sweep"></div></div>' if active else '<div class="radar" style="opacity:.35"><div class="radar-sweep" style="animation:none"></div></div>'
+    active_class = "" if active else " inactive"
+    radar = f'''<div class="ai-core-container{active_class}">
+  <div class="orbit-ring ring-2">
+    <div class="agent-node n1"><div class="counter-spin">🤖</div></div>
+    <div class="agent-node n2"><div class="counter-spin">⚙️</div></div>
+    <div class="agent-node n3"><div class="counter-spin">🧠</div></div>
+    <div class="agent-node n4"><div class="counter-spin">⚡</div></div>
+  </div>
+  <div class="orbit-ring ring-1">
+    <div class="agent-node n1" style="width:14px;height:14px;top:-7px;left:calc(50% - 7px);"><div class="counter-spin" style="font-size:8px;">📊</div></div>
+    <div class="agent-node n2" style="width:14px;height:14px;bottom:-7px;left:calc(50% - 7px);"><div class="counter-spin" style="font-size:8px;">📈</div></div>
+    <div class="data-particle p2"></div>
+    <div class="data-particle p3"></div>
+  </div>
+  <div class="core-pulse">
+    <svg class="core-icon" viewBox="0 0 24 24">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" fill="rgba(56, 189, 248, 0.1)" stroke-width="1.5"/>
+      <path d="M12 8a2 2 0 100-4 2 2 0 000 4z" fill="currentColor"/>
+      <path d="M8 14a2 2 0 100-4 2 2 0 000 4z" fill="currentColor"/>
+      <path d="M16 14a2 2 0 100-4 2 2 0 000 4z" fill="currentColor"/>
+      <path d="M12 8v4M8 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </div>
+</div>'''
     lines = ''.join(f'<div class="console-line">&gt; {line}</div>' for line in logs[-9:])
     return radar + '<div class="console">' + (lines or '<div class="console-line">&gt; SYSTEM ARMED — awaiting case</div>') + '</div>'
 
@@ -206,6 +255,12 @@ with st.sidebar:
             model_choices,
             help="The selected external model writes the explanation only. It cannot change the guardrail-locked routing.",
         )
+        token_usage_placeholder = st.empty()
+        if st.session_state.result and st.session_state.result.get("token_usage"):
+            usage = st.session_state.result["token_usage"]
+            token_usage_placeholder.caption(f"**Token Usage:** {usage.get('total_tokens', 0):,} total ({usage.get('prompt_tokens', 0):,} in / {usage.get('completion_tokens', 0):,} out)")
+    else:
+        token_usage_placeholder = st.empty()
 
     st.markdown("### 🗄️ DATA SOURCE")
     use_live_data = st.toggle(
@@ -268,6 +323,11 @@ with st.sidebar:
             preset["data_source"] = "live_external_manual_fallback"
             preset_identity = "live-manual-fallback"
             st.warning(live_load_error or "The external dataset could not be loaded.")
+
+    if not use_live_data:
+        st.info("💡 **Active Data Mode:** Synthetic Demos")
+    else:
+        st.info("💡 **Active Data Mode:** External Live Dataset")
 
     side_console = st.empty()
     side_console.markdown(console_html(st.session_state.console_logs, False), unsafe_allow_html=True)
@@ -378,6 +438,10 @@ if process:
             memory_store=store,
         )
         st.session_state.result = result
+        if result.get("token_usage"):
+            usage = result["token_usage"]
+            token_usage_placeholder.caption(f"**Token Usage:** {usage.get('total_tokens', 0):,} total ({usage.get('prompt_tokens', 0):,} in / {usage.get('completion_tokens', 0):,} out)")
+            
         st.session_state.console_logs.append(f"DECISION LOCKED: {result['decision']}")
         st.session_state.console_logs.append("WORKFLOW COMPLETE")
         pipeline_placeholder.markdown(pipeline_html(st.session_state.pipeline_status), unsafe_allow_html=True)
@@ -405,6 +469,11 @@ if result:
         st.warning(result["llm_warning"])
     if result["privacy"]["llm_bypassed"]:
         st.error("Security containment activated: external LLM bypassed and human review required.")
+
+    if result["human_review_required"]:
+        st.info("💡 **NEXT STEPS:** Review the evidence in the **Guardrails** and **Debate Committee** tabs below, then use the **Human Review** tab to record your final decision.")
+    else:
+        st.success("💡 **NEXT STEPS:** The case has been routed automatically. You can review the evidence in the tabs below, or record an optional decision in the **Human Review** tab.")
 
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "🗣️ Debate Committee", "🧠 Evidence & RAG", "📈 XGBoost", "🛡️ Guardrails",
@@ -445,7 +514,24 @@ if result:
         model_result = result["model"]
         st.progress(float(model_result["denial_probability"]), text=f"Denial probability {model_result['denial_probability']:.1%}")
         signals = pd.DataFrame(model_result["top_signals"])
-        st.dataframe(signals, use_container_width=True, hide_index=True)
+        
+        import altair as alt
+        chart = alt.Chart(signals).mark_bar().encode(
+            x=alt.X('contribution:Q', title='SHAP Contribution (Log Odds)'),
+            y=alt.Y('feature:N', sort=alt.EncodingSortField(field="contribution", order="descending"), title=''),
+            color=alt.Color(
+                'direction:N',
+                scale=alt.Scale(
+                    domain=['raises denial risk', 'reduces denial risk'],
+                    range=['#ff5c7a', '#36f1a3']
+                ),
+                legend=alt.Legend(title="Impact")
+            ),
+            tooltip=['feature', 'contribution', 'direction']
+        ).properties(height=220)
+        
+        st.markdown("##### SHAP Feature Contributions")
+        st.altair_chart(chart, use_container_width=True)
         metrics = DenialRiskModel().metrics
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("ROC-AUC", metrics.get("roc_auc"))
@@ -485,7 +571,23 @@ if result:
 
     with tab6:
         st.markdown("#### Similar JSON-memory cases")
-        st.dataframe(pd.DataFrame(result["similar_cases"]), use_container_width=True, hide_index=True)
+        if not result.get("similar_cases"):
+            st.info("No similar historical cases found in memory.")
+        else:
+            for sim in result["similar_cases"]:
+                label = f"{sim.get('payer', 'Unknown')} | {sim.get('service_type', 'Unknown')} | {sim.get('decision', 'UNKNOWN').replace('_', ' ')} (Score: {sim.get('similarity_score', 0)})"
+                with st.expander(label):
+                    st.caption(f"**Run ID:** `{sim.get('run_id')}` &nbsp;•&nbsp; **Processed:** {sim.get('created_at')}")
+                    
+                    # Safe lookup without requiring module reload
+                    all_cases = store.list_cases(1000)
+                    full_case = next((c for c in all_cases if c.get("run_id") == sim.get("run_id")), None)
+                    
+                    if full_case:
+                        st.json(full_case, expanded=False)
+                    else:
+                        st.warning("Full raw JSON for this historical case is not available in the local store.")
+                        st.json(sim, expanded=False)
         st.markdown("#### Recent human-review audit")
         st.dataframe(pd.DataFrame(store.list_audit(25)), use_container_width=True, hide_index=True)
 

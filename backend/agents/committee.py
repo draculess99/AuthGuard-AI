@@ -231,8 +231,9 @@ def run_pipeline(
         llm_warning = None
         explanation_provider = "Guardrail-only local explanation"
         explanation_model = "guardrail-local"
+        usage_dict = None
     else:
-        narrative, llm_warning, explanation_model = generate_explanation(
+        narrative, llm_warning, explanation_model, usage_dict = generate_explanation(
             provider, explanation_context, model=provider_model
         )
         explanation_provider = provider
@@ -272,6 +273,7 @@ def run_pipeline(
         "narrative": narrative,
         "explanation_provider": explanation_provider,
         "explanation_model": explanation_model,
+        "token_usage": usage_dict,
         "data_source": case.get("data_source", "manual_or_synthetic"),
         "llm_warning": llm_warning,
         "similar_cases": similar_cases,

@@ -64,6 +64,14 @@ class JSONMemoryStore:
         rows = self._read(self.files["cases"], [])
         return list(reversed(rows[-limit:]))
 
+    def get_case(self, run_id: str) -> dict[str, Any] | None:
+        rows = self._read(self.files["cases"], [])
+        for row in rows:
+            if row.get("run_id") == run_id:
+                return row
+        return None
+
+
     def append_case(self, case_record: dict[str, Any]) -> None:
         rows = self._read(self.files["cases"], [])
         rows.append(case_record)
