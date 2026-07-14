@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050914"/><stop offset="1" stop-color="#10233d"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2de2e6"/><stop offset="1" stop-color="#ff3cac"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect x="45" y="45" width="1190" height="630" rx="28" fill="none" stroke="#28476d" stroke-width="3"/>
+  <rect x="110" y="130" width="1060" height="8" rx="4" fill="url(#line)"/>
+  <text x="640" y="315" text-anchor="middle" fill="#edf7ff" font-family="Arial, sans-serif" font-size="44" font-weight="700">DEBATE COMMITTEE</text>
+  <text x="640" y="380" text-anchor="middle" fill="#94a9c6" font-family="Arial, sans-serif" font-size="24">Replace with support, oppose, and caution cards</text>
+  <text x="640" y="560" text-anchor="middle" fill="#2de2e6" font-family="Consolas, monospace" font-size="18">SCREENSHOT PLACEHOLDER • docs/images/04-debate-committee.svg</text>
+</svg>

@@ -1,0 +1,31 @@
+{
+  "dataset": "synthetic demonstration training data",
+  "rows": 2200,
+  "positive_rate": 0.5195,
+  "accuracy": 0.6343,
+  "precision": 0.6492,
+  "recall": 0.6414,
+  "f1": 0.6453,
+  "roc_auc": 0.6824,
+  "feature_importance": {
+    "in_network": 0.16538,
+    "failed_conservative_therapy": 0.12835,
+    "specialist_order": 0.09767,
+    "therapy_gap_weeks": 0.08001,
+    "missing_document_count": 0.06488,
+    "evidence_ratio": 0.06192,
+    "urgency_score": 0.05519,
+    "payer_complexity": 0.05301,
+    "inpatient": 0.05089,
+    "requested_units": 0.04996,
+    "service_risk": 0.0491,
+    "previous_denials": 0.04895,
+    "log_estimated_cost": 0.04855,
+    "age_years": 0.04614
+  },
+  "limitations": [
+    "The included model is trained on synthetic proxy outcomes.",
+    "It demonstrates workflow integration and must not be used for real coverage decisions.",
+    "A production model would require payer-specific labeled outcomes, calibration, bias review, and monitoring."
+  ]
+}

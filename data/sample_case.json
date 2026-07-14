@@ -1,0 +1,22 @@
+{
+  "case_id": "AG-DEMO-1001",
+  "payer": "Commercial A",
+  "service_type": "Advanced Imaging",
+  "diagnosis_group": "Neurologic",
+  "age_years": 49,
+  "urgent": false,
+  "inpatient": false,
+  "prior_auth_required": true,
+  "member_eligible": true,
+  "in_network": true,
+  "requested_units": 1,
+  "evidence_count": 5,
+  "required_document_count": 5,
+  "conservative_therapy_weeks": 8,
+  "guideline_min_weeks": 6,
+  "failed_conservative_therapy": true,
+  "specialist_order": true,
+  "estimated_cost": 3200,
+  "previous_denials": 0,
+  "clinical_notes": "De-identified demonstration note."
+}
