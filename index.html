@@ -351,6 +351,69 @@
       z-index: 1;
     }
 
+    /* Screenshot Section */
+    .screenshot-section { max-width: 1200px; margin: 0 auto 60px; padding: 0 24px; text-align: center; }
+    .screenshot-container { background: var(--bg-card); border: 1px solid var(--border-accent); border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); margin-bottom: 16px; }
+    .screenshot-image { width: 100%; height: auto; border-radius: 8px; display: block; }
+    .screenshot-caption { color: var(--text-muted); font-size: 0.95rem; font-style: italic; }
+
+    /* Why Matters Section */
+    .why-matters-section { max-width: 900px; margin: 0 auto 60px; padding: 0 24px; }
+    .why-matters-section h2 { font-size: 2rem; margin-bottom: 24px; text-align: center; color: var(--text-main); }
+    .why-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+    .why-list li { background: var(--bg-card); border: 1px solid var(--border); padding: 20px 20px 20px 50px; border-radius: 8px; position: relative; }
+    .why-list li::before { content: "✓"; color: var(--accent); position: absolute; left: 20px; font-size: 1.2rem; font-weight: bold; }
+
+    /* Highlights Flow Diagram */
+    .highlights-section { max-width: 1200px; margin: 0 auto 80px; padding: 0 24px; }
+    .highlight-flow {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+    }
+    .highlight-node {
+      background: rgba(11, 15, 25, 0.6);
+      border: 1px solid var(--border-accent);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      width: 22%;
+      position: relative;
+      z-index: 2;
+      transition: transform 0.2s;
+    }
+    .highlight-node:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--accent-glow); }
+    .highlight-node h4 { color: var(--accent); font-size: 1rem; font-weight: 600; line-height: 1.4; }
+    
+    .highlight-connector {
+      flex: 1;
+      height: 2px;
+      background: var(--border-accent);
+      position: relative;
+      z-index: 1;
+    }
+    .highlight-connector::after {
+      content: '';
+      position: absolute;
+      right: -2px;
+      top: -4px;
+      border-width: 5px 0 5px 6px;
+      border-style: solid;
+      border-color: transparent transparent transparent var(--border-accent);
+    }
+
+    /* CTA Section */
+    .cta-section { max-width: 900px; margin: 0 auto 80px; padding: 40px 24px; text-align: center; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); }
+    .cta-section h2 { margin-bottom: 30px; font-size: 2rem; }
+    .cta-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+
     footer {
       text-align: center;
       padding: 32px;
@@ -370,6 +433,30 @@
 
       .nav-links {
         display: none;
+      }
+
+      .highlight-flow {
+        flex-direction: column;
+        padding: 24px;
+        gap: 0;
+      }
+      .highlight-node {
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto;
+      }
+      .highlight-connector {
+        width: 2px;
+        height: 24px;
+        flex: none;
+        margin: 0 auto;
+      }
+      .highlight-connector::after {
+        right: -4px;
+        top: auto;
+        bottom: -2px;
+        border-width: 6px 5px 0 5px;
+        border-color: var(--border-accent) transparent transparent transparent;
       }
     }
   </style>
@@ -399,6 +486,42 @@
         Application</a>
       <a href="https://github.com/draculess99/AuthGuard-AI" target="_blank" class="btn btn-outline">View
         Architecture</a>
+    </div>
+  </section>
+
+  <section class="screenshot-section">
+    <div class="screenshot-container">
+      <img src="docs/images/authguard-command-center.png" alt="AuthGuard-AI Command Center" class="screenshot-image">
+    </div>
+    <p class="screenshot-caption">“AuthGuard-AI command center showing denial-risk scoring, multi-agent review, governed routing, and human oversight.”</p>
+  </section>
+
+  <section class="why-matters-section">
+    <h2>Why AuthGuard-AI Matters</h2>
+    <ul class="why-list">
+      <li>Prior-authorization decisions require eligibility, documentation, evidence, risk, and policy review.</li>
+      <li>AuthGuard combines XGBoost, RAG, structured rules, and multi-agent reasoning.</li>
+      <li>Guardrails and human review control uncertain or high-risk decisions.</li>
+    </ul>
+  </section>
+
+  <section class="highlights-section">
+    <div class="highlight-flow">
+      <div class="highlight-node">
+        <h4>5 Healthcare<br>AI Applications</h4>
+      </div>
+      <div class="highlight-connector"></div>
+      <div class="highlight-node">
+        <h4>XGBoost + RAG<br>+ Rules</h4>
+      </div>
+      <div class="highlight-connector"></div>
+      <div class="highlight-node">
+        <h4>Human-in-the-Loop<br>Governance</h4>
+      </div>
+      <div class="highlight-connector"></div>
+      <div class="highlight-node">
+        <h4>Live Cloud<br>Deployment</h4>
+      </div>
     </div>
   </section>
 
@@ -497,6 +620,16 @@
           <h4 style="color: #f59e0b;">Human Review / Escalation</h4>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="cta-section">
+    <h2>Ready to dive in?</h2>
+    <div class="cta-grid">
+      <a href="https://authguard-ai-production.up.railway.app/" target="_blank" class="btn btn-primary">Launch Live Demo</a>
+      <a href="https://github.com/draculess99/AuthGuard-AI" target="_blank" class="btn btn-outline">View GitHub Repository</a>
+      <a href="https://github.com/draculess99/AuthGuard-AI/blob/main/README.md" target="_blank" class="btn btn-outline">Read Technical README</a>
+      <a href="https://draculess99.github.io/" class="btn btn-outline">Return to Portfolio</a>
     </div>
   </section>
 
