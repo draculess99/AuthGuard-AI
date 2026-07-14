@@ -4,7 +4,7 @@
 
 > **Portfolio and educational prototype only.** AuthGuard does not determine coverage, provide medical advice, submit requests, or replace qualified utilization-management, clinical, privacy, compliance, or payer-policy review. Use synthetic data or properly authorized, de-identified records only.
 
-![AuthGuard Command Center placeholder](docs/images/01-command-center.svg)
+![AuthGuard Command Center placeholder](docs/images/01-command-center.png)
 
 ---
 
@@ -48,7 +48,7 @@ The external-data adapter validates the URL scheme, response size, record count,
 
 A schema-ready example is provided at `data/live_data_template.csv`. It is synthetic and is intended only as a formatting template.
 
-![Data source switch placeholder](docs/images/02-data-source-switch.svg)
+![Data source switch placeholder](docs/images/02-data-source-switch.png)
 
 ---
 
@@ -181,7 +181,7 @@ flowchart LR
 | Memory Agent | Finds similar cases and stores the result |
 | Human Review Gate | Pauses cases requiring qualified review and records final human action |
 
-![Live pipeline placeholder](docs/images/03-live-agent-pipeline.svg)
+![Live pipeline placeholder](docs/images/03-live-agent-pipeline.png)
 
 ---
 
@@ -205,7 +205,7 @@ Each member reports:
 
 The committee vote helps the arbiter explain the outcome, but the final route remains constrained by deterministic guardrails.
 
-![Debate committee placeholder](docs/images/04-debate-committee.svg)
+![Debate committee placeholder](docs/images/04-debate-committee.png)
 
 ---
 
@@ -278,7 +278,36 @@ Included demonstration knowledge:
 
 RAG output is advisory. Current payer-specific policy must be independently verified before operational use.
 
-![RAG and XGBoost placeholder](docs/images/05-rag-xgboost.svg)
+![RAG and XGBoost placeholder](docs/images/05-rag.png)
+
+Patient / Authorization Request
+            ↓
+     Data Validation
+            ↓
+   ┌───────────────────────┐
+   │                       │
+   │   XGBoost Risk Model  │
+   │   • denial risk       │
+   │   • urgency score     │
+   │   • routing signal    │
+   │                       │
+   └──────────┬────────────┘
+              │
+              ├──────────────┐
+              │              │
+              ↓              ↓
+   RAG Knowledge Search   Expert Rules
+   • payer guidance       • eligibility checks
+   • documentation        • missing documents
+   • appeal guidance      • escalation triggers
+              │              │
+              └──────┬───────┘
+                     ↓
+          Decision Orchestration
+                     ↓
+      Recommendation + Explanation
+                     ↓
+          Human Review / Escalation
 
 ---
 
@@ -303,7 +332,7 @@ Human reviewers can record:
 
 These actions are written to the JSON audit log. The prototype still does not transmit anything to a payer.
 
-![Guardrails and human review placeholder](docs/images/06-guardrails-human-review.svg)
+![Guardrails and human review placeholder](docs/images/06-guardrails-human-review.png)
 
 ---
 
