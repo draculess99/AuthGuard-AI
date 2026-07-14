@@ -640,7 +640,7 @@ A production-grade system would still require:
 
 ---
 
-## Portfolio pitch
+## Summary
 
 **AuthGuard AI is an agentic prior-authorization control tower.** It accepts synthetic or authorized de-identified external cases, predicts denial risk with XGBoost, evaluates deterministic requirements, retrieves relevant policy evidence, exposes a multi-agent debate, locks the safest route through non-negotiable guardrails, and pauses the workflow for a qualified human wherever risk or policy demands it.
 

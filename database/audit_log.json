@@ -1,0 +1,11 @@
+[
+  {
+    "run_id": "a9a89eca-10a9-4197-a36c-8a975db7864a",
+    "case_id": "AG-07140958",
+    "reviewer": "Utilization Management Reviewer",
+    "action": "REQUEST_ADDITIONAL_EVIDENCE",
+    "rationale": "need more info",
+    "system_decision": "HUMAN_REVIEW_REQUIRED",
+    "reviewed_at": "2026-07-14T13:59:42.536897+00:00"
+  }
+]

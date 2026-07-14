@@ -1,0 +1,41 @@
+[
+  {
+    "run_id": "694550d6-7e93-4beb-bd31-3d923cf0ae68",
+    "case_id": "AG-07140957",
+    "payer": "Commercial A",
+    "service_type": "Advanced Imaging",
+    "diagnosis_group": "Neurologic",
+    "urgent": false,
+    "decision": "READY_FOR_SUBMISSION_REVIEW",
+    "risk_level": "Low",
+    "denial_probability": 0.2087,
+    "blocker_count": 0,
+    "created_at": "2026-07-14T13:57:48.706753+00:00"
+  },
+  {
+    "run_id": "b8bafb19-8e83-4968-82c2-ad2ee924dcd1",
+    "case_id": "AG-07140958",
+    "payer": "Commercial A",
+    "service_type": "Advanced Imaging",
+    "diagnosis_group": "Neurologic",
+    "urgent": false,
+    "decision": "HUMAN_REVIEW_REQUIRED",
+    "risk_level": "High",
+    "denial_probability": 0.6587000000000001,
+    "blocker_count": 0,
+    "created_at": "2026-07-14T13:58:20.794905+00:00"
+  },
+  {
+    "run_id": "a9a89eca-10a9-4197-a36c-8a975db7864a",
+    "case_id": "AG-07140958",
+    "payer": "Commercial A",
+    "service_type": "Advanced Imaging",
+    "diagnosis_group": "Neurologic",
+    "urgent": false,
+    "decision": "HUMAN_REVIEW_REQUIRED",
+    "risk_level": "Moderate",
+    "denial_probability": 0.41659999999999997,
+    "blocker_count": 0,
+    "created_at": "2026-07-14T13:58:53.180244+00:00"
+  }
+]
