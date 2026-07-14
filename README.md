@@ -8,6 +8,17 @@
 
 ---
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+## Project Links
+
+- **Live Demo:** https://medpackai-production.up.railway.app/
+- **GitHub Repository:** https://github.com/draculess99/MEDPACK_AI/
+- **LinkedIn:** https://www.linkedin.com/in/gammaconsult/
+- **Portfolio:** https://draculess99.github.io/
+
+---
+
 ## What dataset is included?
 
 The bundled XGBoost classifier is trained on **2,200 reproducibly generated synthetic rows** created inside `backend/model.py` with NumPy. It does **not** contain real patients, payer records, claims, protected health information, or genuine authorization outcomes.
