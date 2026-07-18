@@ -12,7 +12,7 @@
 
 ## Project Links
 
-- **Live Demo:** https://authguard-ai-production.up.railway.app/
+- **Live Demo:** https://healthcareaiother-production.up.railway.app/authguard
 - **GitHub Repository:** https://github.com/draculess99/AuthGuard-AI/
 - **LinkedIn:** https://www.linkedin.com/in/gammaconsult/
 - **Portfolio:** https://draculess99.github.io/
