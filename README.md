@@ -12,8 +12,8 @@
 
 ## Project Links
 
-- **Live Demo:** https://medpackai-production.up.railway.app/
-- **GitHub Repository:** https://github.com/draculess99/MEDPACK_AI/
+- **Live Demo:** https://healthcareai-production-a736.up.railway.app/authguard/
+- **GitHub Repository:** https://github.com/draculess99/AuthGuard-AI/
 - **LinkedIn:** https://www.linkedin.com/in/gammaconsult/
 - **Portfolio:** https://draculess99.github.io/
 
