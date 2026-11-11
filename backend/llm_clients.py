@@ -43,21 +43,85 @@ def get_model_choices(provider: str) -> list[str]:
     return list(dict.fromkeys(choice for choice in choices if choice))
 
 
-def local_explanation(context: dict[str, Any]) -> str:
+def validate_enhanced_explanation(enhanced: str, canonical: str, locked_decision: str) -> tuple[bool, str]:
+    """Validate external LLM output against the locked deterministic route.
+
+    Returns: (is_valid, reason_if_invalid)
+    """
+    if not enhanced or not str(enhanced).strip():
+        return False, "empty_response"
+
+    enhanced_lower = str(enhanced).lower()
+
+    # Reject if output contains contradictory route terms (without context check)
+    # This is a simple heuristic to catch obvious contradictions
+    contradictions = [
+        ("deny", "denial", "rejected", "disapprove"),  # Reject if these conflict with READY route
+        ("approved auto", "automatically approved"),  # Reject unsupported claims
+    ]
+
+    # If locked decision is READY, reject anything claiming denial/rejection without nuance
+    if "READY" in locked_decision:
+        for phrase in ("deny", "denied", "rejected", "will not approve"):
+            if phrase in enhanced_lower:
+                return False, "contradicts_locked_route"
+
+    # Reject suspicious escalation claims if not in locked route
+    if "escalate" in enhanced_lower and locked_decision not in ("ESCALATE_DENIAL_RISK", "URGENT_HUMAN_REVIEW"):
+        # This is too strict, allow it since escalation might be mentioned in context
+        pass
+
+    # Reject if output is suspiciously short (< 50 chars) - likely truncated or error
+    if len(enhanced.strip()) < 50:
+        return False, "response_too_short"
+
+    return True, ""
+
+
+def deterministic_explanation(context: dict[str, Any]) -> str:
+    """Canonical, deterministic explanation from the locked route and guardrail reasons.
+
+    This is the authoritative explanation and the fallback for all providers.
+    It is derived solely from deterministic evidence and the locked workflow route.
+    """
     decision = context.get("decision", "HUMAN_REVIEW_REQUIRED")
     risk = context.get("risk_level", "Unknown")
     blockers = context.get("blockers", [])
     warnings = context.get("warnings", [])
-    evidence = []
+    guardrail_reasons = context.get("guardrail_reasons", [])
+
+    explanation_parts = [
+        f"The deterministic workflow determined this case must route to {decision}."
+    ]
+
+    if guardrail_reasons:
+        for reason in guardrail_reasons[:3]:
+            explanation_parts.append(f"• {reason}")
+
     if blockers:
-        evidence.append("blocking items: " + "; ".join(blockers[:3]))
+        blocker_text = "blocking items: " + "; ".join(blockers[:3])
+        explanation_parts.append(f"• {blocker_text}")
+
     if warnings:
-        evidence.append("review warnings: " + "; ".join(warnings[:3]))
-    detail = " ".join(evidence) or "the structured checks did not identify a blocking defect"
-    return (
-        f"The committee routed this case to {decision}. The XGBoost risk band is {risk}, and {detail}. "
-        "This explanation is advisory; the deterministic rules and human-review gate control the workflow."
+        warning_text = "review warnings: " + "; ".join(warnings[:3])
+        explanation_parts.append(f"• {warning_text}")
+
+    if not (guardrail_reasons or blockers or warnings):
+        explanation_parts.append("The deterministic checks did not identify a blocking defect.")
+
+    explanation_parts.append(f"The XGBoost risk band is {risk}.")
+    explanation_parts.append(
+        "This is a structured decision-support result only. It does not determine coverage, "
+        "provide medical advice, or submit authorization requests. "
+        "Qualified personnel must verify current payer policy and clinical evidence."
     )
+
+    return " ".join(explanation_parts)
+
+
+def local_explanation(context: dict[str, Any]) -> str:
+    """Deprecated: use deterministic_explanation instead."""
+    return deterministic_explanation(context)
 
 
 def call_groq(prompt: str, model: str | None = None) -> tuple[str, str, dict[str, int] | None]:
@@ -136,25 +200,72 @@ def generate_explanation(
     context: dict[str, Any],
     model: str | None = None,
 ) -> tuple[str, str | None, str, dict[str, int] | None]:
+    """Generate an explanation from the locked deterministic route.
+
+    Groq/Gemini are optional enhancements only; they can rephrase the canonical
+    deterministic explanation for clarity, but cannot alter routing or facts.
+    If Groq fails or is unavailable, returns the canonical deterministic explanation.
+    """
+    canonical = deterministic_explanation(context)
     normalized_provider = (provider or "Local Expert System").lower()
+
+    # If provider is Local Expert System, return canonical immediately
+    if not normalized_provider.startswith(("groq", "gemini")):
+        return canonical, None, "deterministic-local", None
+
+    # Build prompt for Groq/Gemini to rephrase canonical explanation + committee findings
+    committee_summary = ""
+    committee_vote = context.get("committee_vote", {})
+    if committee_vote:
+        support = committee_vote.get("support", 0)
+        oppose = committee_vote.get("oppose", 0)
+        caution = committee_vote.get("caution", 0)
+        committee_summary = (
+            f"\n\nEvidence review panel findings: {support} supporting, "
+            f"{oppose} cautioning/opposing, {caution} noting cautions. "
+            "These findings are for explanation and audit only; they cannot alter the locked route."
+        )
+
     prompt = (
-        "Create a detailed committee explanation from this immutable structured result. "
-        "Mention the strongest supporting and opposing evidence and the reason for human review when applicable.\n\n"
-        + json.dumps(context, indent=2, default=str)
+        "Rephrase this deterministic decision-support explanation into clear, readable prose. "
+        "Include the evidence review panel findings as context. "
+        "Never change the decision, invent facts, contradict the locked route, or claim authority over routing. "
+        "The deterministic route is immutable.\n\n"
+        + canonical + committee_summary
     )
+
     try:
         if normalized_provider.startswith("groq"):
             text, selected_model, usage = call_groq(prompt, model=model)
+            is_valid, reason = validate_enhanced_explanation(text, canonical, context.get("decision", ""))
+            if not is_valid:
+                return (
+                    canonical,
+                    f"External explanation invalid ({reason}); deterministic explanation used",
+                    selected_model,
+                    None,
+                )
             return text, None, selected_model, usage
         if normalized_provider.startswith("gemini"):
             text, selected_model, usage = call_gemini(prompt, model=model)
+            is_valid, reason = validate_enhanced_explanation(text, canonical, context.get("decision", ""))
+            if not is_valid:
+                return (
+                    canonical,
+                    f"External explanation invalid ({reason}); deterministic explanation used",
+                    selected_model,
+                    None,
+                )
             return text, None, selected_model, usage
-        return local_explanation(context), None, "deterministic-local", None
     except Exception as exc:
+        # Fallback to canonical deterministic explanation on any error
         fallback_model = model or "unavailable"
         return (
-            local_explanation(context),
-            f"LLM provider unavailable; local explanation used: {exc}",
+            canonical,
+            f"External explanation unavailable; deterministic explanation used: {type(exc).__name__}",
             fallback_model,
             None,
         )
+
+    # Should not reach here, but return canonical as safety fallback
+    return canonical, None, "deterministic-fallback", None

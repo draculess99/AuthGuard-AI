@@ -1,14 +1,11 @@
-# AuthGuard AI
+# AuthGuard Pay
+## Human-Governed AI Evidence Review with PayPal Sandbox
 
-**A human-governed, multi-agent prior-authorization decision-support command center built with Python, Streamlit, Flask, XGBoost, deterministic expert rules, local policy RAG, JSON memory, optional Groq/Gemini explanations, visible processing lights, debate-based reasoning, and mandatory human review where risk or policy requires it.**
+**AuthGuard Pay is an AI-assisted, human-governed evidence-review system integrated with PayPal Sandbox for synthetic payment demonstration.** It evaluates prior-authorization cases using deterministic rules, local policy RAG, XGBoost risk scoring, and an explanation-only evidence review panel. A named human explicitly approves a fixed synthetic patient-pay amount. PayPal Sandbox integration demonstrates auditable, human-controlled order creation, buyer approval, and payment capture—never autonomous decision-making or real financial transactions.
 
-> **Portfolio and educational prototype only.** AuthGuard does not determine coverage, provide medical advice, submit requests, or replace qualified utilization-management, clinical, privacy, compliance, or payer-policy review. Use synthetic data or properly authorized, de-identified records only.
-
-![AuthGuard Command Center placeholder](docs/images/01-command-center.png)
+**Synthetic demonstration only.** All cases, amounts, approval workflows, and payments are demonstrations using Sandbox credentials. This system does not determine insurance coverage, provide clinical advice, submit real authorization requests, perform real patient transactions, or replace qualified healthcare professionals.
 
 ---
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Project Links
 
@@ -19,632 +16,557 @@
 
 ---
 
-## What dataset is included?
+## Why PayPal + AI
 
-The bundled XGBoost classifier is trained on **2,200 reproducibly generated synthetic rows** created inside `backend/model.py` with NumPy. It does **not** contain real patients, payer records, claims, protected health information, or genuine authorization outcomes.
+**Deterministic routing locks first.** Deterministic expert rules, XGBoost risk scoring, and guardrails establish and lock the workflow route before any explanation is generated. Policy RAG and the Evidence Review Panel run afterward, for explanation and critique only.
 
-The synthetic generator creates 14 structured model features and then produces a proxy denial label from a logistic probability function. The strongest synthetic risk drivers include missing documentation, weak evidence coverage, out-of-network status, insufficient conservative therapy, missing specialist orders, prior denials, payer complexity, service risk, urgency, and cost-related signals.
+**Evidence review panel explains only.** Specialist critique and optional Groq/Gemini rephrasing are advisory explanation layers. They cannot alter the locked route, human-review requirement, or synthetic patient-pay amount.
 
-| Model feature | Meaning |
-|---|---|
-| `age_years` | Age entered for the demonstration case |
-| `urgency_score` | Standard versus urgent request |
-| `inpatient` | Inpatient indicator |
-| `in_network` | Network status |
-| `evidence_ratio` | Evidence received divided by required evidence |
-| `therapy_gap_weeks` | Shortfall against the configured policy minimum |
-| `failed_conservative_therapy` | Whether failure or intolerance is documented |
-| `specialist_order` | Presence of a specialist order |
-| `log_estimated_cost` | Log-transformed estimated cost |
-| `previous_denials` | Prior denial count |
-| `requested_units` | Requested units or days |
-| `payer_complexity` | Demonstration payer complexity score |
-| `service_risk` | Demonstration service-category risk score |
-| `missing_document_count` | Required evidence still missing |
+**Named human controls everything.** A qualified reviewer explicitly approves the fixed synthetic patient-pay amount. PayPal Sandbox creates an order, obtains buyer approval in Sandbox, and captures payment only after explicit human action—never automatically.
 
-Bundled demonstration metrics are stored in `models/model_metrics.json`. They verify that the software pipeline is connected; they do not establish payer, clinical, legal, or production validity.
-
-### Synthetic versus live/external data
-
-The sidebar now includes a **Use live / external dataset** switch.
-
-- **Synthetic mode** uses the bundled demonstration scenarios.
-- **Live/external mode** loads de-identified records from either:
-  - a CSV, JSON, or JSONL upload; or
-  - a URL configured through `AUTHGUARD_LIVE_DATA_URL`.
-
-The external-data adapter validates the URL scheme, response size, record count, required schema, numeric ranges, and normalized field types. Private or loopback URLs are blocked by default. A bearer token can be supplied through `.env` without displaying it in the interface.
-
-> The external switch changes the **case-input source**. The included XGBoost artifact remains the synthetic demonstration model. Training a genuine model would require a separately governed, payer-specific labeled outcome dataset and a formal validation process.
-
-A schema-ready example is provided at `data/live_data_template.csv`. It is synthetic and is intended only as a formatting template.
-
-![Data source switch placeholder](docs/images/02-data-source-switch.png)
+**Timestamped audit trail.** All approvals, order creations, and payment captures are recorded with timestamps in the application audit log. The log is a demonstration of structured decision traceability.
 
 ---
 
-## Major implemented features
+## Core Workflow
 
-### Command-center user experience
-
-- Dark operations-center Streamlit interface
-- Responsive intake form
-- Animated top-right processing spinner
-- Side-console radar animation and rolling execution log
-- Eleven pipeline status lights that move from pending to running to complete/error
-- Decision, denial-risk, committee-vote, and human-gate summary cards
-- Six evidence and governance tabs
-- Raw structured-result viewer for technical inspection
-
-### Decision intelligence
-
-- XGBoost denial-risk classifier
-- Deterministic expert-system rules
-- Policy/documentation RAG using TF-IDF retrieval
-- Similar-case JSON memory
-- Multi-agent debate committee
-- Guardrail-locked arbiter recommendation
-- Human review workflow with approve-package, request-evidence, and reject/reroute actions
-- Flask API for programmatic processing and review
-
-### External model options
-
-- Local Expert System mode requiring no API key
-- Groq explanation mode
-- Gemini explanation mode
-- Dynamic model dropdown that appears only when Groq or Gemini is selected
-- Model choice passed through the Streamlit UI, Flask API, orchestrator, and provider client
-- Automatic deterministic fallback when an API key, provider, or model is unavailable
-- External models are explanation-only and cannot change routing
-
-### Security and governance controls
-
-- SSN, phone, and email redaction
-- Prompt-injection phrase detection
-- Automatic LLM bypass after injection detection
-- Mandatory human escalation for urgent, high-risk, blocked, or unsafe cases
-- Guardrails can only make a route stricter, never more permissive
-- Missing evidence cannot be cleared by an LLM
-- External dataset size and record-count limits
-- Live URL scheme validation and private-address blocking
-- Environment secrets excluded through `.gitignore`
-- JSON audit trail for human decisions
-- Explicit non-submission and non-coverage disclaimer
+1. **Case intake:** User or external data source provides structured authorization case (synthetic or external de-identified data).
+2. **Deterministic route locked:** Deterministic expert rules, fixed XGBoost thresholds, and guardrails establish the workflow decision before explanation.
+3. **Evidence review panel critique:** Specialist agents explain the locked route and provide critique (explanation and audit only; cannot alter routing).
+4. **Optional LLM rephrasing:** Groq or Gemini may rephrase the canonical explanation if configured; output is validated and falls back to canonical if invalid.
+5. **Named human review:** Qualified reviewer reads the locked route, panel findings, and optional explanation. They decide whether to approve the case for submission or request additional evidence.
+6. **Payment approval (if demo):** Reviewer explicitly approves the fixed synthetic patient-pay amount via checkbox and action button, recorded in audit log.
+7. **PayPal Sandbox (if approved):** Reviewer creates order, completes buyer approval in Sandbox, and captures payment. All actions are human initiated and timestamped.
 
 ---
 
-## System architecture
-
-```mermaid
-flowchart LR
-    U["User or external case source"] --> UI["Streamlit command center"]
-    UI --> DS{"Data-source switch"}
-    DS -->|Synthetic| SYN["Bundled synthetic scenarios"]
-    DS -->|Live or external| EXT["CSV, JSON, JSONL, or configured URL"]
-    EXT --> VAL["Schema, range, size, and URL guardrails"]
-    SYN --> ORCH["Multi-agent pipeline orchestrator"]
-    VAL --> ORCH
-
-    UI --> API["Flask API"]
-    API --> ORCH
-
-    ORCH --> RULES["Deterministic expert system"]
-    ORCH --> RAG["Local policy RAG"]
-    ORCH --> XGB["XGBoost denial-risk model"]
-    ORCH --> DEBATE["Debate committee"]
-    RULES --> GUARD["Guardrail sentinel"]
-    RAG --> GUARD
-    XGB --> GUARD
-    DEBATE --> GUARD
-
-    GUARD --> ARB["Arbiter"]
-    ARB -->|Local| LOCAL["Deterministic explanation"]
-    ARB -->|Optional| LLM["Groq or Gemini explanation"]
-    LOCAL --> HUMAN["Human review gate"]
-    LLM --> HUMAN
-    HUMAN --> MEMORY["JSON cases, memory, and audit"]
-    MEMORY --> UI
-```
-
-### Trust boundary
+## System Architecture
 
 ```mermaid
 flowchart TD
-    A["Structured case"] --> B["Rules + RAG + XGBoost + debate"]
-    B --> C["Non-negotiable guardrails"]
-    C --> D["Immutable routing decision"]
-    D --> E["Optional Groq or Gemini narrative"]
-    D --> F["Human review gate"]
-    E -. "May explain only" .-> F
-    E -. "Cannot alter" .-> D
-    F --> G["Recorded reviewer action"]
+    U["User or external case source"]
+    U --> VAL["Input validation & guardrails"]
+    VAL --> ROUTING["Evaluate routing inputs<br/>Expert rules + XGBoost risk model<br/>Fixed documented thresholds"]
+    ROUTING --> GUARD["Guardrail Sentinel — combines inputs and locks one route"]
+    GUARD --> DECISION["One locked workflow route<br/>Human-review requirement"]
+    DECISION --> EXPL["Build explanation context<br/>Local policy RAG + evidence review panel<br/>Policy support and critique only"]
+    EXPL --> CANON["Canonical deterministic<br/>explanation"]
+    CANON --> LLM["Groq or Gemini<br/>Optional validated rephrasing"]
+    CANON --> HUMAN["Named human<br/>review/approval"]
+    LLM --> HUMAN
+    HUMAN --> AUDIT["Timestamped audit log<br/>& case summary"]
+    HUMAN --> DEMO["Optional PayPal Sandbox<br/>Human initiated only"]
+    DEMO --> AUDIT
 ```
 
 ---
 
-## Multi-agent pipeline
-
-```mermaid
-flowchart LR
-    P1["1 Privacy Shield"] --> P2["2 Intake Agent"]
-    P2 --> P3["3 Eligibility Agent"]
-    P3 --> P4["4 Clinical Evidence Agent"]
-    P4 --> P5["5 Policy RAG Agent"]
-    P5 --> P6["6 XGBoost Risk Agent"]
-    P6 --> P7["7 Debate Committee"]
-    P7 --> P8["8 Guardrail Sentinel"]
-    P8 --> P9["9 Arbiter Agent"]
-    P9 --> P10["10 Memory Agent"]
-    P10 --> P11["11 Human Review Gate"]
-```
-
-| Stage | Responsibility |
-|---|---|
-| Privacy Shield | Validates the case, redacts common PII patterns, and detects prompt injection |
-| Intake Agent | Normalizes identifiers and attaches workflow metadata |
-| Eligibility Agent | Checks eligibility, network, and prior-authorization requirement |
-| Clinical Evidence Agent | Applies deterministic evidence and policy-threshold rules |
-| Policy RAG Agent | Retrieves relevant local policy and documentation chunks |
-| XGBoost Risk Agent | Produces denial probability, risk band, and feature contributions |
-| Debate Committee | Records support, opposition, caution, evidence, confidence, and recommendations |
-| Guardrail Sentinel | Locks the safest permissible route |
-| Arbiter Agent | Reconciles the structured outcome and creates an explanation |
-| Memory Agent | Finds similar cases and stores the result |
-| Human Review Gate | Pauses cases requiring qualified review and records final human action |
-
-![Live pipeline placeholder](docs/images/03-live-agent-pipeline.png)
-
----
-
-## Debate committee
-
-The committee is intentionally not a single-agent yes/no answer. It exposes disagreement and evidence from multiple specialist perspectives:
-
-- Coverage and eligibility position
-- Clinical evidence position
-- Policy RAG position
-- XGBoost denial-risk position
-- Devil's advocate position
-- Compliance and safety position
-
-Each member reports:
-
-- stance: `SUPPORT`, `OPPOSE`, or `CAUTION`;
-- confidence score;
-- evidence list; and
-- recommended next action.
-
-The committee vote helps the arbiter explain the outcome, but the final route remains constrained by deterministic guardrails.
-
-![Debate committee placeholder](docs/images/04-debate-committee.png)
-
----
-
-## End-to-end data flow
+## PayPal Sandbox Workflow
 
 ```mermaid
 sequenceDiagram
-    actor Reviewer
-    participant UI as Streamlit UI
-    participant Source as Synthetic or external source
-    participant Pipeline as Agent pipeline
-    participant Rules as Expert system
-    participant RAG as Policy RAG
-    participant Model as XGBoost
-    participant Debate as Committee
-    participant Guard as Guardrails
-    participant LLM as Local, Groq, or Gemini
-    participant Memory as JSON memory
+    actor Reviewer as Named Human Reviewer
+    participant Auth as AuthGuard Pipeline
+    participant Panel as Evidence Review Panel
+    participant PayPal as PayPal Sandbox
+    participant Audit as Audit Log
 
-    Reviewer->>UI: Select source, provider, and model
-    UI->>Source: Load selected case
-    Source-->>UI: Normalized de-identified record
-    UI->>Pipeline: Submit case
-    Pipeline->>Rules: Evaluate deterministic requirements
-    Pipeline->>RAG: Retrieve relevant policy chunks
-    Pipeline->>Model: Score denial risk
-    Rules-->>Debate: Blockers, warnings, passes
-    RAG-->>Debate: Evidence chunks
-    Model-->>Debate: Probability and top signals
-    Debate->>Guard: Support, oppose, caution vote
-    Guard-->>Pipeline: Locked route and human-review requirement
-    Pipeline->>LLM: Send redacted structured result for explanation only
-    LLM-->>Pipeline: Narrative or local fallback
-    Pipeline->>Memory: Store case and find similar records
-    Pipeline-->>UI: Decision, evidence, debate, and audit metadata
-    Reviewer->>UI: Approve package, request evidence, or reroute
-    UI->>Memory: Save human action
-```
-
-### Data-source decision flow
-
-```mermaid
-flowchart TD
-    START["Open AuthGuard"] --> SWITCH{"Live or external switch?"}
-    SWITCH -->|Off| DEMO["Choose bundled synthetic scenario"]
-    SWITCH -->|On| METHOD{"URL or upload?"}
-    METHOD -->|URL| URL["Read AUTHGUARD_LIVE_DATA_URL"]
-    METHOD -->|Upload| FILE["Read CSV, JSON, or JSONL"]
-    URL --> CHECK["Validate URL, size, type, record count, and schema"]
-    FILE --> CHECK
-    CHECK -->|Valid| PICK["Select external case record"]
-    CHECK -->|Invalid| HOLD["Show warning and prevent false live-data claim"]
-    DEMO --> FORM["Populate editable intake form"]
-    PICK --> FORM
-    FORM --> PIPE["Run governed multi-agent pipeline"]
+    Auth-->>Reviewer: Locked deterministic route
+    Auth-->>Reviewer: Canonical explanation
+    Panel-->>Reviewer: Specialist findings (explanation only)
+    Reviewer->>Auth: ✅ Approve synthetic patient-pay amount
+    Auth->>Audit: Record PAYMENT_APPROVED
+    Reviewer->>Auth: 📦 Create Sandbox Order
+    Auth->>PayPal: Create order (Sandbox only)
+    PayPal-->>Auth: Approval URL
+    Auth->>Audit: Record PAYPAL_ORDER_CREATED
+    Reviewer->>PayPal: 🔗 Complete Sandbox buyer approval
+    PayPal-->>Auth: Buyer approval recorded
+    Reviewer->>Auth: 💰 Capture Sandbox Payment
+    Auth->>PayPal: Capture transaction (Sandbox only)
+    PayPal-->>Auth: Capture confirmed
+    Auth->>Audit: Record PAYPAL_CAPTURED
+    Reviewer->>Audit: ✓ Timestamped audit trail complete
+    Note over Auth,Audit: Synthetic demonstration only<br/>No real payment, clinical determination, or payer submission
 ```
 
 ---
 
-## RAG implementation
+## Run from the PayPal Feature Branch
 
-The RAG layer reads local text documents from `data/knowledge/`, chunks them, builds a TF-IDF index, and returns the most relevant policy/documentation guidance for the current payer, service, diagnosis group, urgency, and evidence questions.
+The PayPal Sandbox integration is available on the `feature/paypal-authguard` branch. Use these Windows PowerShell commands to clone, set up, and run the application:
 
-Included demonstration knowledge:
+### First-Time Setup
 
-- general payer-policy guidance;
-- documentation checklist;
-- appeal guidance; and
-- security/governance guidance.
-
-RAG output is advisory. Current payer-specific policy must be independently verified before operational use.
-
-![RAG and XGBoost placeholder](docs/images/05-rag.png)
-
-```text
-Patient / Authorization Request
-            ↓
-     Data Validation
-            ↓
-   ┌───────────────────────┐
-   │                       │
-   │   XGBoost Risk Model  │
-   │   • denial risk       │
-   │   • urgency score     │
-   │   • routing signal    │
-   │                       │
-   └──────────┬────────────┘
-              │
-              ├──────────────┐
-              │              │
-              ↓              ↓
-   RAG Knowledge Search   Expert Rules
-   • payer guidance       • eligibility checks
-   • documentation        • missing documents
-   • appeal guidance      • escalation triggers
-              │              │
-              └──────┬───────┘
-                     ↓
-          Decision Orchestration
-                     ↓
-      Recommendation + Explanation
-                     ↓
-          Human Review / Escalation
-```
-
----
-
-## Human-in-the-loop and guardrails
-
-AuthGuard requires human review when any of the following are present:
-
-- prompt-injection indicators;
-- eligibility uncertainty;
-- unresolved blocking documentation;
-- urgent/expedited requests;
-- critical denial risk;
-- high denial risk where the route would otherwise be ready;
-- unresolved non-blocking policy warnings; or
-- committee opposition sufficient to require escalation.
-
-Human reviewers can record:
-
-- `APPROVE_PACKAGE_FOR_SUBMISSION`;
-- `REQUEST_ADDITIONAL_EVIDENCE`; or
-- `REJECT_OR_REROUTE`.
-
-These actions are written to the JSON audit log. The prototype still does not transmit anything to a payer.
-
-![Guardrails and human review placeholder](docs/images/06-guardrails-human-review.png)
-
----
-
-## JSON memory and audit
-
-| File | Purpose |
-|---|---|
-| `database/cases.json` | Completed structured pipeline results |
-| `database/memory_history.json` | Compact case summaries for similarity matching |
-| `database/audit_log.json` | Human-review actions and rationale |
-| `database/memory_state.json` | Processed/reviewed counters and state |
-
-For Railway persistence, mount a volume and set `AUTHGUARD_DATA_DIR=/data/authguard`. Use one replica while JSON persistence is active. A production deployment should migrate to a managed transactional database with authentication, role-based access, encryption, retention controls, and concurrency-safe writes.
-
-![Memory and audit placeholder](docs/images/07-memory-audit.svg)
-
----
-
-## Provider and model selection
-
-The first dropdown selects the explanation provider. A second dropdown appears only for Groq or Gemini.
-
-### Groq choices
-
-- `llama-3.3-70b-versatile`
-- `llama-3.1-8b-instant`
-- `openai/gpt-oss-20b`
-- `openai/gpt-oss-120b`
-
-### Gemini choices
-
-- `gemini-3.5-flash`
-- `gemini-3.1-pro-preview`
-- `gemini-2.5-flash`
-- `gemini-2.5-flash-lite`
-- `gemini-2.5-pro`
-
-The lists are curated defaults. The value in `.env` is inserted into the dropdown even if a provider introduces a newer identifier.
-
----
-
-## Environment configuration
-
-A ready-to-fill `.env` file and a shareable `.env.example` are included.
-
-```env
-# GroqCloud
-GROQ_API_KEY=
-GROQ_MODEL=llama-3.3-70b-versatile
-
-# Google Gemini
-GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash
-
-# Optional de-identified external data source
-AUTHGUARD_LIVE_DATA_URL=
-AUTHGUARD_LIVE_DATA_BEARER_TOKEN=
-AUTHGUARD_LIVE_DATA_TIMEOUT=20
-AUTHGUARD_LIVE_DATA_MAX_BYTES=5242880
-AUTHGUARD_LIVE_DATA_MAX_RECORDS=5000
-AUTHGUARD_ALLOW_PRIVATE_LIVE_URL=false
-
-AUTHGUARD_API_PORT=5008
-AUTHGUARD_DATA_DIR=
-```
-
-Never commit populated secrets. `.env` is already listed in `.gitignore`.
-
----
-
-## External dataset schema
-
-At minimum, each CSV/JSON record needs values that map to:
-
-```text
-case_id
-payer
-service_type
-diagnosis_group
-```
-
-The adapter also recognizes aliases such as `request_id`, `authorization_id`, `payer_name`, `health_plan`, `service`, `request_type`, `diagnosis`, and `condition_group`.
-
-Recommended full schema:
-
-```text
-case_id,payer,service_type,diagnosis_group,age_years,urgent,inpatient,
-prior_auth_required,member_eligible,in_network,requested_units,evidence_count,
-required_document_count,conservative_therapy_weeks,guideline_min_weeks,
-failed_conservative_therapy,specialist_order,estimated_cost,previous_denials,
-clinical_notes
-```
-
-The loader normalizes common Boolean and numeric representations, applies safe defaults to optional fields, and rejects a dataset when no valid record remains.
-
----
-
-## Run locally
-
-### Windows
-
-```bat
-run_local.bat
-```
-
-### macOS or Linux
-
-```bash
-chmod +x run_local.sh
-./run_local.sh
-```
-
-### Manual launch
-
-```bash
-python -m pip install -r requirements.txt
+```powershell
+git clone https://github.com/draculess99/AuthGuard-AI.git
+cd AuthGuard-AI
+git fetch origin
+git switch feature/paypal-authguard
+git pull --ff-only origin feature/paypal-authguard
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+Copy-Item .env.example .env
 python app.py
 ```
 
-Open:
+**Important:**
+- Edit `.env` to add your **PayPal Sandbox credentials** (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`)
+- Ensure `PAYPAL_MODE=sandbox` (never production)
+- **Never use production PayPal credentials in development**
+- Once the application starts, open the local URL printed to the console (typically `http://localhost:8501`)
+- The Flask API and Streamlit dashboard are started together by `app.py`
 
-- Streamlit: `http://localhost:8501`
-- Flask health: `http://localhost:5008/health`
+### Testing
+
+Run the complete test suite to verify the installation:
+
+```powershell
+python -m pytest -q
+```
+
+All 52 tests should pass, including PayPal Sandbox integration tests.
+
+### Update an Existing Checkout
+
+If you already have the repository cloned, update to the latest PayPal feature branch:
+
+```powershell
+git switch feature/paypal-authguard
+git pull --ff-only origin feature/paypal-authguard
+python -m pytest -q
+python app.py
+```
 
 ---
 
-## Flask API
+## Run Locally
 
-### Health
+### Prerequisites
 
+- Python 3.9+
+- Free PayPal Sandbox account (optional, for payment demo)
+
+### Setup
+
+1. **Clone and navigate:**
+   ```bash
+   git clone https://github.com/draculess99/AuthGuard-AI
+   cd AuthGuard-AI
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configure .env (optional PayPal):**
+   ```env
+   PAYPAL_MODE=sandbox
+   PAYPAL_CLIENT_ID=<your_sandbox_client_id>
+   PAYPAL_CLIENT_SECRET=<your_sandbox_secret>
+   AUTHGUARD_API_PORT=5008
+   ```
+
+   Obtain free Sandbox credentials at [developer.paypal.com](https://developer.paypal.com).
+
+4. **Run the application:**
+   ```bash
+   python app.py
+   ```
+
+5. **Access:**
+   - **Streamlit UI:** http://localhost:8501
+   - **Flask API health:** http://localhost:5008/health
+
+---
+
+## Complete Local Demonstration Walkthrough
+
+This walkthrough takes you from a clean start to a completed PayPal **Sandbox** payment, one step at a time. It uses only synthetic data. **No real money, patient, clinical decision, or coverage decision is involved.**
+
+### How It Works (Plain Language)
+
+1. **The route is decided first, and by fixed rules.** Expert rules and the XGBoost denial-risk model score the request. Fixed, documented thresholds and guardrails then lock one workflow route.
+2. **Explanation comes after the route is locked.** Policy RAG (a lookup in the local policy notes) and the six-member Evidence Review Panel run only after the route is locked. They explain and challenge the result, but they **cannot change the deterministic route**.
+3. **The Arbiter writes the canonical explanation.** It is a deterministic summary of the locked route and the panel findings. Optional Groq/Gemini text can only rephrase it.
+4. **Memory and the audit log keep records.** Memory finds similar prior cases. The timestamped audit log records human decisions and payment actions.
+5. **PayPal is Sandbox only.** A person must approve the synthetic payment before an order can be created, and a person must trigger the capture.
+
+### Step-by-Step Demonstration
+
+#### A. Switch to the correct branch and start the application
+
+Open PowerShell in your AuthGuard-AI checkout. First-time setup is described in [Run from the PayPal Feature Branch](#run-from-the-paypal-feature-branch).
+
+```powershell
+git switch feature/paypal-authguard
+git branch --show-current          # should print: feature/paypal-authguard
+.\.venv\Scripts\Activate.ps1
+python app.py
+```
+
+`app.py` starts both the Flask API (port 5008) and the Streamlit dashboard (port 8501). Leave this window open for the whole demo.
+
+#### B. Open the dashboard
+
+Go to **http://localhost:8501**. You should see the **AUTHGUARD AI PAYPAL** header, the intake form, and the Live Agent Pipeline.
+
+![AuthGuard Pay dashboard with the intake form and Live Agent Pipeline](docs/images/paypal/01-authguard-pay-dashboard.png)
+
+*The dashboard before a run. The left panel shows the active data mode and the pipeline stages wait on the right.*
+
+#### C. Run the Clean imaging request
+
+Keep **Synthetic Demos** selected (the **Use live / external dataset** switch stays off). The scenario **Clean imaging request** is selected by default. Click **RUN AUTHGUARD PIPELINE** and wait for "AuthGuard processing complete."
+
+#### D. Read the result cards
+
+![Result cards showing the locked route, denial risk, panel tally, and human gate](docs/images/paypal/02-evidence-review-result.png)
+
+*Result of the Clean imaging request: the locked route, denial risk, panel tally, and human gate.*
+
+| Card | What it means |
+|---|---|
+| **Final routing** | The guardrail-locked route. For the clean case this is `READY FOR SUBMISSION REVIEW`. |
+| **Denial risk** | The XGBoost denial-risk score after rule adjustments, with its risk band (about 20.9%, Low, for the clean case). |
+| **Panel tally** | How many of the six panel members said SUPPORT, OPPOSE, or CAUTION. The clean case shows **4 SUPPORT · 0 OPPOSE · 2 CAUTION**. This is advisory and does not change the route. |
+| **Human gate** | Whether qualified human review is **REQUIRED** or **OPTIONAL**. The clean case shows OPTIONAL, but a specialist review is still recommended before any submission. |
+
+#### E. Review the tabs
+
+Click through each tab under the result cards:
+
+| Tab | What to look at |
+|---|---|
+| **Evidence Review Panel** | One card per panel member with its stance, confidence, evidence, and recommendation. |
+| **Evidence & RAG** | The local policy passages that were retrieved after the route was locked. |
+| **XGBoost** | The denial-risk model output and the signals that influenced the score. |
+| **Guardrails** | The non-negotiable controls and the reasons recorded for the locked route. |
+| **Human Review** | Where the reviewer records a decision, and where the synthetic payment demo lives. |
+| **Memory & Audit** | Similar prior cases and the recent audit records. |
+
+![Evidence Review Panel showing six specialist cards with stances](docs/images/paypal/03-agent-review-panel.png)
+
+*The Evidence Review Panel: six findings that explain the locked route but cannot change it.*
+
+#### F. Record a human review decision
+
+1. Open the **Human Review** tab.
+2. Enter a **reviewer name / role** (the default is fine) and a short **review rationale**.
+3. Click **Approve package**. A green message confirms the decision was saved.
+
+This records an **internal portfolio workflow action** in the audit log. It does **not** submit anything to a payer.
+
+> **Streamlit rerun note:** every click makes Streamlit rerun the page, and it can jump back to the first tab. If that happens, click the **Human Review** tab again and confirm the green "Human decision saved" message is still showing, or check the audit table in step J.
+
+#### G. Record the synthetic payment approval and create one Sandbox order
+
+Scroll down in **Human Review** to **Synthetic Patient-Pay Demo**.
+
+1. Confirm the page shows **PayPal Sandbox configured** and the synthetic amount (`$640.00` for the clean case).
+2. **Step 1:** tick **I explicitly approve this synthetic patient-pay amount for PayPal Sandbox demo**, then click **Record Synthetic Payment Approval**.
+3. **Step 2:** click **Create Sandbox Order** **once**. The order ID appears and an **Open PayPal Sandbox Approval** link is shown.
+
+![Synthetic Patient-Pay Demo before the payment approval is recorded](docs/images/paypal/04-human-payment-approval.png)
+
+*Human Review with the Synthetic Patient-Pay Demo. The explicit approval checkbox comes before any order can be created.*
+
+![Sandbox order created, with the approval link and confirmation checkbox](docs/images/paypal/05-paypal-sandbox-order.png)
+
+*After the approval is recorded and the order is created: the order ID and the link to PayPal Sandbox approval.*
+
+The server will not create an order unless a matching `PAYMENT_APPROVED` record already exists for the same run and amount.
+
+#### H. Approve the order in PayPal Sandbox
+
+1. Click **Open PayPal Sandbox Approval**. It opens PayPal Sandbox in a new tab.
+2. Sign in with a **PayPal Personal Sandbox buyer account** (created in your developer.paypal.com Sandbox accounts, never your real PayPal account).
+3. Choose the simulated funding source that the Sandbox account provides.
+4. Review the order and click **Pay Now** (or **Approve**).
+
+**No real money moves.** Sandbox accounts, balances, and cards are simulated by PayPal.
+
+#### I. Capture the payment
+
+1. After approval, PayPal redirects to `localhost` (the return URL). Close that redirected tab and **go back to your original AuthGuard Streamlit tab**, so the pending order is not lost (see Troubleshooting).
+2. Tick **I have completed PayPal Sandbox buyer approval**.
+3. Click **Capture Sandbox Payment** **exactly once**. A green "Payment captured" message shows the capture ID.
+4. The capture status is **COMPLETED**. You can see it in the `capture_status` column of the audit table in step J.
+
+![Buyer approval box checked and the Capture Sandbox Payment button enabled](docs/images/paypal/06-paypal-sandbox-approval.png)
+
+*Buyer approval confirmed and the Capture Sandbox Payment step enabled.*
+
+![Payment captured message and audit confirmation](docs/images/paypal/07-payment-captured.png)
+
+*The Sandbox payment captured, with the capture ID and the audit-log confirmation.*
+
+#### J. Verify the audit trail
+
+Open **Memory & Audit** and look at **Recent human-review audit**. For the run you just made, you should see these four actions:
+
+| Action | Recorded when |
+|---|---|
+| `APPROVE_PACKAGE_FOR_SUBMISSION` | You clicked **Approve package** (step F). |
+| `PAYMENT_APPROVED` | You recorded the synthetic payment approval (step G). |
+| `PAYPAL_ORDER_CREATED` | The Sandbox order was created (step G). |
+| `PAYPAL_CAPTURED` | The Sandbox payment was captured, with `capture_status` `COMPLETED` (step I). |
+
+![Full Memory & Audit view with current and earlier records](docs/images/paypal/08a-audit-trail-full-history.png)
+
+*Screenshot 8A — Full audit history:* Full Memory & Audit view showing current and earlier synthetic demonstration or test records.
+
+![Close-up of the current run's four audit actions](docs/images/paypal/08b-audit-trail-current-run.png)
+
+*Screenshot 8B — Current completed audit chain:* Close-up of the current run showing `APPROVE_PACKAGE_FOR_SUBMISSION`, `PAYMENT_APPROVED`, `PAYPAL_ORDER_CREATED`, and `PAYPAL_CAPTURED` with `COMPLETED` capture status.
+
+**Screenshot 8B is the authoritative current-run evidence.** Screenshot 8A is the unfiltered table, so it also lists earlier synthetic demonstration and test records. The audit log is a timestamped application record for demonstration, not a tamper-proof ledger.
+
+### Screenshot Guide
+
+| File | Shows | Walkthrough step |
+|---|---|---|
+| `docs/images/paypal/01-authguard-pay-dashboard.png` | Dashboard and intake form before a run | B |
+| `docs/images/paypal/02-evidence-review-result.png` | Locked route, denial risk, panel tally, human gate | D |
+| `docs/images/paypal/03-agent-review-panel.png` | Six Evidence Review Panel cards | E |
+| `docs/images/paypal/04-human-payment-approval.png` | Human Review and the Synthetic Patient-Pay Demo | F, G |
+| `docs/images/paypal/05-paypal-sandbox-order.png` | Sandbox order created, approval link shown | G |
+| `docs/images/paypal/06-paypal-sandbox-approval.png` | Buyer approval confirmed, capture enabled | H, I |
+| `docs/images/paypal/07-payment-captured.png` | Capture confirmation and capture ID | I |
+| `docs/images/paypal/08a-audit-trail-full-history.png` | Full Memory & Audit view, including earlier synthetic and test records | J |
+| `docs/images/paypal/08b-audit-trail-current-run.png` | Current run's four audit actions (authoritative evidence) | J |
+
+The walkthrough uses nine screenshots in total. Screenshots must never show credentials, secrets, or real personal information.
+
+### Troubleshooting the Demo
+
+- **Use a PayPal Personal Sandbox buyer.** Sign in only with a Sandbox buyer account from developer.paypal.com, never a real PayPal account.
+- **Streamlit reruns on every interaction.** If the page jumps to another tab, reopen the relevant tab (for example **Human Review**) and check for the green saved message.
+- **Do not create or capture the same order repeatedly.** Click **Create Sandbox Order** once and **Capture Sandbox Payment** once. A captured order cannot be captured again.
+- **Keep the original Streamlit session while an order is pending.** The order ID is held in that browser tab's session. Reloading the page, or using the tab PayPal redirects to, starts a new session and the pending order will not be shown.
+- **Check the Flask API.** Open **http://localhost:5008/health**. It should return `"status": "ok"`.
+- **`PAYPAL_MODE` must be `sandbox`.** Any other value leaves PayPal unconfigured. The optional `PAYPAL_RETURN_URL` and `PAYPAL_CANCEL_URL` default to `http://localhost:8501`.
+- **Never put credentials in README.md or screenshots.** Keep them in `.env`, which is ignored by Git.
+
+---
+
+## API Overview
+
+### Health Check
 ```bash
 curl http://localhost:5008/health
 ```
 
-### Process a case with a selected provider model
-
+### Process a Case
 ```bash
-curl -X POST http://localhost:5008/api/process \
-  -H "Content-Type: application/json" \
-  -d '{
-    "provider": "Groq",
-    "provider_model": "llama-3.3-70b-versatile",
-    "case": {
-      "case_id": "AG-1001",
-      "payer": "Commercial A",
-      "service_type": "Advanced Imaging",
-      "diagnosis_group": "Neurologic",
-      "age_years": 49,
-      "urgent": false,
-      "inpatient": false,
-      "prior_auth_required": true,
-      "member_eligible": true,
-      "in_network": true,
-      "requested_units": 1,
-      "evidence_count": 5,
-      "required_document_count": 5,
-      "conservative_therapy_weeks": 8,
-      "guideline_min_weeks": 6,
-      "failed_conservative_therapy": true,
-      "specialist_order": true,
-      "estimated_cost": 3200,
-      "previous_denials": 0,
-      "clinical_notes": "De-identified demonstration note",
-      "data_source": "synthetic_demo"
-    }
-  }'
+POST /api/process
+Content-Type: application/json
+
+{
+  "provider": "Local Expert System",
+  "case": {
+    "case_id": "DEMO-001",
+    "payer": "Commercial A",
+    "service_type": "Advanced Imaging",
+    "diagnosis_group": "Neurologic",
+    "age_years": 50,
+    ...
+  }
+}
 ```
 
-Other endpoints:
+### Record Human Review Decision
+```bash
+POST /api/review
+Content-Type: application/json
 
-- `POST /api/review`
-- `GET /api/cases`
-- `GET /api/memory`
-- `GET /api/audit`
-- `GET /api/model/metrics`
-- `GET /api/knowledge`
+{
+  "run_id": "<run_id>",
+  "case_id": "DEMO-001",
+  "reviewer": "Jane Doe",
+  "action": "APPROVE_PACKAGE_FOR_SUBMISSION",
+  "approved_amount": 640.00
+}
+```
+
+### Create PayPal Sandbox Order
+```bash
+POST /api/paypal/create-order
+Content-Type: application/json
+
+{
+  "run_id": "<run_id>",
+  "case_id": "DEMO-001",
+  "reviewer": "Jane Doe",
+  "amount": 640.00
+}
+```
+
+Response:
+```json
+{
+  "status": "created",
+  "order_id": "<paypal_order_id>",
+  "amount": 640.00,
+  "currency": "USD",
+  "approval_url": "https://www.sandbox.paypal.com/checkoutnow?token=..."
+}
+```
+
+### Capture PayPal Sandbox Order
+```bash
+POST /api/paypal/capture-order
+Content-Type: application/json
+
+{
+  "order_id": "<paypal_order_id>",
+  "run_id": "<run_id>",
+  "case_id": "DEMO-001",
+  "reviewer": "Jane Doe"
+}
+```
+
+### Other Endpoints
+
+- `GET /api/cases` — List processed cases
+- `GET /api/memory` — Similar case summaries
+- `GET /api/audit` — Human-review actions and PayPal transaction records
+- `GET /api/model/metrics` — XGBoost model metrics
+- `GET /api/knowledge` — Local policy RAG documents
 
 ---
 
-## Railway deployment
+## Pipeline Stages
 
-The package runs Streamlit and Flask as one Railway service:
+The multi-agent orchestrator executes these deterministic stages in order:
 
-```text
-web: python app.py
-```
+1. **Privacy Shield** — Redacts PII patterns, detects prompt injection
+2. **Intake Agent** — Normalizes case identifiers and metadata
+3. **Eligibility Agent** — Checks member eligibility and network status
+4. **Clinical Evidence Agent** — Applies deterministic evidence rules
+5. **XGBoost Risk Agent** — Scores denial probability and risk band
+6. **Guardrail Sentinel** — Locks the deterministic route *before* policy retrieval and panel generation
+7. **Policy RAG Agent** — Retrieves relevant local policy guidance (explanation support only, after the lock)
+8. **Evidence Review Panel** — Specialist critique and findings (explanation and audit only)
+9. **Arbiter Agent** — Creates canonical deterministic explanation and optional Groq/Gemini rephrasing
+10. **Memory Agent** — Finds similar cases for learning
+11. **Human Review Gate** — Routes cases requiring qualified review
 
-`app.py` starts Waitress for Flask on `AUTHGUARD_API_PORT` and Streamlit on Railway's assigned `PORT`.
-
-Recommended Railway variables:
-
-```env
-GROQ_API_KEY=your_secret
-GEMINI_API_KEY=your_secret
-AUTHGUARD_DATA_DIR=/data/authguard
-AUTHGUARD_LIVE_DATA_URL=https://your-authorized-source.example/cases.json
-```
-
-Do not put real secrets in the repository.
+**Routing authority is deterministic.** The Evidence Review Panel provides expert critique and explanation, but cannot alter the locked workflow route or human-review requirements.
 
 ---
 
-## Tests
+## Evidence Review Panel
 
-Run:
+The panel provides specialist perspectives on the already-locked route:
+
+- **Coverage & Eligibility Agent** — Eligibility, network, and authorization findings
+- **Clinical Evidence Agent** — Documentation completeness and rule results
+- **Policy RAG Agent** — Relevant policy chunks and compliance guidance
+- **XGBoost Denial-Risk Agent** — Denial probability, risk band, top risk factors
+- **Devil's Advocate Agent** — Strongest counterarguments and evidence gaps
+- **Compliance & Safety Agent** — Injection detection, PII redaction, governance flags
+
+Each specialist reports stance (`SUPPORT`, `OPPOSE`, `CAUTION`), confidence score, and evidence. Panel findings are visible for audit and explanation. **They cannot alter the locked route.**
+
+---
+
+## Testing
 
 ```bash
 pytest -q
 ```
 
 The test suite covers:
+- PII redaction and prompt-injection detection
+- Deterministic rule evaluation
+- Multi-agent pipeline execution
+- XGBoost risk scoring
+- Groq/Gemini model availability and fallback behavior
+- PayPal Sandbox order creation and capture (mocked HTTP calls)
+- Audit log recording
+- Case and memory persistence
 
-- PII redaction;
-- prompt-injection detection;
-- expert-system blockers;
-- complete multi-agent execution;
-- external-LLM bypass after injection detection;
-- deterministic synthetic dataset generation;
-- live CSV upload parsing and normalization;
-- live JSON parsing and alias mapping;
-- URL-based live loader behavior through a mocked HTTP response;
-- invalid external schema rejection; and
-- Groq/Gemini model-choice availability.
-
-Provider API calls are not executed without real keys. Unavailable providers automatically fall back to the local deterministic explanation.
+PayPal Sandbox calls are mocked in tests. Live Streamlit usage requires valid `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` in `.env`.
 
 ---
 
-## Project structure
+## Safety, Limitations, and Non-Goals
 
-```text
-AuthGuard_AI/
-├── app.py
-├── backend/
-│   ├── agents/committee.py
-│   ├── data_sources.py
-│   ├── expert_system.py
-│   ├── guardrails.py
-│   ├── llm_clients.py
-│   ├── memory.py
-│   ├── model.py
-│   ├── rag.py
-│   └── server.py
-├── frontend/dashboard.py
-├── data/
-│   ├── knowledge/
-│   ├── live_data_template.csv
-│   └── sample_case.json
-├── database/
-├── docs/images/
-├── models/
-├── tests/
-├── .env
-├── .env.example
-├── requirements.txt
-├── Procfile
-└── README.md
+### What AuthGuard Pay Is
+- An AI-assisted evidence review system demonstrating deterministic routing authority
+- A Sandbox payment workflow showing human-controlled order, approval, and capture
+- An educational prototype using synthetic data
+
+### What AuthGuard Pay Is NOT
+- A clinical diagnostic system
+- An insurance/coverage determination engine
+- A payer integration or real authorization submission system
+- A real-payment processor (Sandbox only)
+- An autonomous decision-making system (humans approve all actions)
+
+### Audit Log
+- All approvals, order creations, and payment captures are timestamped in the JSON audit log
+- The audit log is a demonstration of structured decision traceability
+- It is **not** cryptographically secured, immutable, or tamper-proof
+- It is an application record suitable for demonstration and learning
+
+### Evidence Review Panel
+- Panel findings are advisory explanation layers
+- Panel cannot alter the locked route or human-review requirements
+- Panel cannot change the synthetic patient-pay amount
+- Panel cannot create or capture PayPal orders
+
+### External LLMs (Groq/Gemini)
+- Optional presentation enhancements only
+- Receive the locked route and panel findings
+- May rephrase explanations for clarity
+- Cannot alter routing, human-review requirements, or payment amount
+- Output is validated; invalid output falls back to canonical explanation
+
+---
+
+## Project Structure
+
 ```
-
----
-
-## Recommended screenshots
-
-Capture these after launching the application:
-
-1. Full command center with intake and pipeline visible.
-2. Synthetic/live switch with the external URL/upload controls.
-3. Pipeline actively running with lights, radar, and top-right spinner.
-4. Debate committee showing support, opposition, and caution.
-5. RAG evidence and XGBoost top signals.
-6. Guardrail reasons and mandatory human-review action panel.
-7. Similar-case memory and human-audit history.
-
-The placeholder images are already in `docs/images/`. Replace them with your PNG screenshots and change the README extensions from `.svg` to `.png`.
-
----
-
-## Production limitations and next steps
-
-A production-grade system would still require:
-
-- payer-specific, temporally valid policy integrations;
-- standardized FHIR/Da Vinci prior-authorization workflows;
-- genuine labeled outcomes under data-use and privacy governance;
-- probability calibration and threshold approval;
-- fairness, subgroup, leakage, and external-validation studies;
-- authentication, RBAC, encryption, secrets management, and PHI controls;
-- managed database persistence;
-- policy versioning and citation lineage;
-- model and policy drift monitoring;
-- reviewer identity and electronic-signature controls;
-- operational observability, retry queues, and incident response; and
-- qualified legal, clinical, compliance, security, and payer review.
+AuthGuard-Pay/
+├── app.py                          # Entry point (Flask + Streamlit)
+├── backend/
+│   ├── agents/committee.py         # Pipeline orchestrator
+│   ├── data_sources.py             # External case loading
+│   ├── expert_system.py            # Deterministic rules
+│   ├── guardrails.py               # Route locking logic
+│   ├── llm_clients.py              # Groq/Gemini interface
+│   ├── memory.py                   # JSON audit & memory store
+│   ├── model.py                    # XGBoost denial-risk classifier
+│   ├── paypal.py                   # PayPal Sandbox client
+│   ├── rag.py                      # Local policy RAG
+│   └── server.py                   # Flask API
+├── frontend/
+│   └── dashboard.py                # Streamlit UI
+├── data/
+│   └── knowledge/                  # Local policy documents
+├── database/                       # JSON audit, cases, memory
+├── models/                         # Serialized XGBoost model
+├── tests/
+│   ├── test_pipeline.py            # Pipeline, routing order, and dashboard tests
+│   └── test_paypal.py              # PayPal integration tests
+├── .env                            # Configuration (not in repo)
+├── .env.example                    # Configuration template
+├── requirements.txt                # Python dependencies
+├── Procfile                        # Railway deployment
+└── README.md                       # This file
+```
 
 ---
 
 ## Summary
 
-**AuthGuard AI is an agentic prior-authorization control tower.** It accepts synthetic or authorized de-identified external cases, predicts denial risk with XGBoost, evaluates deterministic requirements, retrieves relevant policy evidence, exposes a multi-agent debate, locks the safest route through non-negotiable guardrails, and pauses the workflow for a qualified human wherever risk or policy demands it.
+**AuthGuard Pay demonstrates deterministic AI-assisted evidence review with human-governed payment orchestration.**
 
-Built by **Wil Low / Draculess99**.
-"# AuthGuard-AI" 
+A named human reviewer evaluates a locked, deterministic workflow route supported by specialist panel critique and optional LLM explanation. They explicitly approve a fixed synthetic patient-pay amount. PayPal Sandbox integration shows auditable, human-initiated order creation, buyer approval, and payment capture. All actions—evidence review, approval, payment—are timestamped and recorded. No agent or external LLM can approve a payment, create an order, capture a payment, change the amount, or override the locked route.
+
+**Built by Wil Low (Draculess99)** as a synthetic demonstration and educational prototype.

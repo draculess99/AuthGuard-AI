@@ -23,10 +23,10 @@ PIPELINE_STAGES = [
     ("intake", "Intake Agent"),
     ("eligibility", "Eligibility Agent"),
     ("clinical", "Clinical Evidence Agent"),
-    ("rag", "Policy RAG Agent"),
     ("model", "XGBoost Risk Agent"),
-    ("debate", "Debate Committee"),
     ("guardrails", "Guardrail Sentinel"),
+    ("rag", "Policy RAG Agent"),
+    ("debate", "Evidence Review Panel"),
     ("arbiter", "Arbiter Agent"),
     ("memory", "Memory Agent"),
     ("human", "Human Review Gate"),
@@ -100,18 +100,6 @@ def run_pipeline(
         f"Rules found {len(rules['blockers'])} blocker(s) and {len(rules['warnings'])} warning(s)",
     )
 
-    _emit(progress_callback, "rag", "running", "Retrieving relevant payer-policy and documentation guidance")
-    rag = PolicyRAG()
-    query = " ".join([
-        str(case.get("payer", "")),
-        str(case.get("service_type", "")),
-        str(case.get("diagnosis_group", "")),
-        "urgent" if case.get("urgent") else "standard",
-        "documentation medical necessity conservative therapy appeal",
-    ])
-    rag_results = rag.retrieve(query, top_k=4)
-    _emit(progress_callback, "rag", "complete", f"Retrieved {len(rag_results)} policy evidence chunk(s)")
-
     _emit(progress_callback, "model", "running", "Scoring denial risk with XGBoost")
     model = DenialRiskModel()
     model_result = model.predict(case, rules["missing_document_count"])
@@ -135,7 +123,35 @@ def run_pipeline(
         f"Adjusted denial risk: {adjusted_probability:.1%} ({model_result['risk_level']})",
     )
 
-    _emit(progress_callback, "debate", "running", "Committee agents are challenging the evidence and routing proposal")
+    _emit(progress_callback, "guardrails", "running", "Locking deterministic routing before panel generation")
+    proposed = "READY_FOR_SUBMISSION_REVIEW"
+    if rules["blockers"]:
+        proposed = "HOLD_FOR_DOCUMENTATION"
+    elif adjusted_probability >= 0.55:
+        proposed = "HUMAN_REVIEW_REQUIRED"
+    decision, human_required, guardrail_reasons = enforce_final_guardrails(
+        case=case,
+        proposed_decision=proposed,
+        denial_probability=adjusted_probability,
+        blockers=rules["blockers"],
+        warnings=rules["warnings"],
+        injection_detected=bool(injection_matches),
+    )
+    _emit(progress_callback, "guardrails", "complete", f"Routing locked to {decision}")
+
+    _emit(progress_callback, "rag", "running", "Retrieving relevant payer-policy and documentation guidance")
+    rag = PolicyRAG()
+    query = " ".join([
+        str(case.get("payer", "")),
+        str(case.get("service_type", "")),
+        str(case.get("diagnosis_group", "")),
+        "urgent" if case.get("urgent") else "standard",
+        "documentation medical necessity conservative therapy appeal",
+    ])
+    rag_results = rag.retrieve(query, top_k=4)
+    _emit(progress_callback, "rag", "complete", f"Retrieved {len(rag_results)} policy evidence chunk(s)")
+
+    _emit(progress_callback, "debate", "running", "Evidence review panel is generating findings to accompany the locked route")
     debate: list[dict[str, Any]] = []
     debate.append(_position(
         "Coverage & Eligibility Agent",
@@ -182,7 +198,7 @@ def run_pipeline(
         [
             f"PII patterns redacted: {', '.join(pii_findings) if pii_findings else 'none'}",
             f"Prompt-injection indicators: {len(injection_matches)}",
-            "LLM is explanation-only and cannot change routing",
+            "Panel findings cannot alter the locked route; deterministic routing is immutable",
         ],
         "Bypass LLM and require human review" if injection_matches else "Continue within deterministic guardrails",
     ))
@@ -193,26 +209,10 @@ def run_pipeline(
         progress_callback,
         "debate",
         "complete",
-        f"Committee vote: {support} support, {oppose} oppose, {caution} caution",
+        f"Evidence review panel: {support} supporting, {oppose} cautioning/opposing, {caution} noting cautions (route already locked)",
     )
 
-    _emit(progress_callback, "guardrails", "running", "Applying non-negotiable safety and routing constraints")
-    proposed = "READY_FOR_SUBMISSION_REVIEW"
-    if rules["blockers"]:
-        proposed = "HOLD_FOR_DOCUMENTATION"
-    elif adjusted_probability >= 0.55 or oppose >= 3:
-        proposed = "HUMAN_REVIEW_REQUIRED"
-    decision, human_required, guardrail_reasons = enforce_final_guardrails(
-        case=case,
-        proposed_decision=proposed,
-        denial_probability=adjusted_probability,
-        blockers=rules["blockers"],
-        warnings=rules["warnings"],
-        injection_detected=bool(injection_matches),
-    )
-    _emit(progress_callback, "guardrails", "complete", f"Guardrails locked decision to {decision}")
-
-    _emit(progress_callback, "arbiter", "running", "Arbiter is reconciling model, rules, policy evidence, and debate")
+    _emit(progress_callback, "arbiter", "running", "Creating deterministic explanation with evidence review panel findings")
     explanation_context = {
         "decision": decision,
         "risk_level": model_result["risk_level"],
@@ -229,15 +229,15 @@ def run_pipeline(
             "The deterministic workflow isolated the case for human review."
         )
         llm_warning = None
-        explanation_provider = "Guardrail-only local explanation"
-        explanation_model = "guardrail-local"
+        explanation_provider = "Deterministic guardrail explanation (LLM bypassed)"
+        explanation_model = "deterministic-guardrail"
         usage_dict = None
     else:
         narrative, llm_warning, explanation_model, usage_dict = generate_explanation(
             provider, explanation_context, model=provider_model
         )
         explanation_provider = provider
-    _emit(progress_callback, "arbiter", "complete", "Arbiter issued an immutable routing recommendation")
+    _emit(progress_callback, "arbiter", "complete", "Deterministic explanation locked with evidence review findings")
 
     _emit(progress_callback, "memory", "running", "Searching JSON memory for similar reviewed scenarios")
     similar_cases = store.find_similar(case, limit=3)
