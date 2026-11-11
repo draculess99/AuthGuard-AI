@@ -24,7 +24,7 @@ if str(ROOT) not in sys.path:
 
 from backend.agents.committee import PIPELINE_STAGES, run_pipeline
 from backend.data_sources import load_live_cases
-from backend.llm_clients import get_model_choices
+from backend.llm_clients import default_provider, groq_status
 from backend.memory import JSONMemoryStore
 from backend.model import DenialRiskModel
 from backend.paypal import safe_patient_pay_amount
@@ -249,8 +249,16 @@ if "console_logs" not in st.session_state:
 with st.sidebar:
     st.markdown("### ⚡ DECISION ENGINE")
     st.markdown("**Deterministic Explanation Mode**  \nCanonical explanation locked to the guardrail decision. Optional external prose enhancement only.")
-    provider = "Local Expert System"
-    provider_model: str | None = None
+    provider = default_provider()
+    provider_model: str | None = None  # None: the backend uses GROQ_MODEL from the environment
+    _groq_state = groq_status()
+    if _groq_state == "active":
+        st.success("Groq enabled — optional explanation enhancement is active. Any Groq failure automatically uses the deterministic explanation.")
+    elif _groq_state == "missing_key":
+        st.warning("Groq enabled, but GROQ_API_KEY is missing — deterministic fallback is active.")
+    else:
+        st.info("Groq disabled — AuthGuard is using the deterministic explanation.")
+    st.caption("Routing, risk scoring, guardrails, and PayPal actions always remain deterministic.")
     token_usage_placeholder = st.empty()
     if st.session_state.result and st.session_state.result.get("token_usage"):
         usage = st.session_state.result["token_usage"]
@@ -411,7 +419,7 @@ if process:
         "WORKFLOW STARTED",
         f"Case {case_id} queued",
         f"Data source: {case['data_source']}",
-        "Explanation: deterministic canonical (optional external enhancement configured)",
+        f"Explanation provider: {provider} (route remains deterministic)",
     ]
     side_console.markdown(console_html(st.session_state.console_logs, True), unsafe_allow_html=True)
 
@@ -455,14 +463,31 @@ if result:
     risk = result["model"]["denial_probability"]
     cols = st.columns(4)
     cols[0].markdown(metric_card("Final routing", result["decision"].replace("_", " "), "Guardrail-locked recommendation"), unsafe_allow_html=True)
-    cols[1].markdown(metric_card("Denial risk", f"{risk:.1%}", result["model"]["risk_level"] + " risk band"), unsafe_allow_html=True)
+    cols[1].markdown(metric_card("Denial risk", f"{risk:.1%}", result["model"]["risk_level"] + " authorization denial-risk band"), unsafe_allow_html=True)
     vote = result["committee_vote"]
     cols[2].markdown(metric_card("Panel tally", f"{vote['support']} SUPPORT · {vote['oppose']} OPPOSE · {vote['caution']} CAUTION", "Advisory only; does not change the route"), unsafe_allow_html=True)
     cols[3].markdown(metric_card("Human gate", "REQUIRED" if result["human_review_required"] else "OPTIONAL", result["review_status"].replace("_", " ")), unsafe_allow_html=True)
 
-    st.markdown(f'''<div class="decision"><div class="eyebrow">LOCKED ROUTE & EXPLANATION</div><strong>{result['decision'].replace('_',' ')}</strong><p>{result['narrative']}</p><div class="small-muted">Route: Guardrail-locked • Explanation: {result['explanation_provider']} • Model: {result.get('explanation_model', 'deterministic-local')} • Source: {result.get('data_source', 'unknown')}</div></div>''', unsafe_allow_html=True)
-    if result.get("llm_warning"):
+    st.markdown(f'''<div class="decision"><div class="eyebrow">DETERMINISTIC LOCKED ROUTE</div><strong>{result['decision'].replace('_',' ')}</strong><p>Expert rules, XGBoost risk thresholds, and guardrails locked this route before any explanation was generated. The explanation below cannot change it.</p></div>''', unsafe_allow_html=True)
+
+    groq_text_used = result.get("explanation_provider") == "Groq" and not result.get("explanation_fallback")
+    st.markdown(f"##### {'GROQ EXPLANATION SUMMARY' if groq_text_used else 'DETERMINISTIC EXPLANATION SUMMARY'}")
+    # The narrative may come from an external model: render it as plain text, never as HTML.
+    st.text(result["narrative"])
+    st.caption(
+        f"Route: Guardrail-locked • Explanation: {result['explanation_provider']} • "
+        f"Model: {result.get('explanation_model', 'deterministic-local')} • "
+        f"Source: {result.get('data_source', 'unknown')}"
+    )
+    if result.get("explanation_fallback"):
+        st.warning("Groq fallback active — deterministic explanation used.")
+        if result.get("llm_warning"):
+            st.caption(result["llm_warning"])
+    elif result.get("explanation_provider") == "Groq":
+        st.success("Groq explanation enhancement used; the route remains deterministic.")
+    elif result.get("llm_warning"):
         st.warning(result["llm_warning"])
+    st.caption("Routing, risk scoring, guardrails, and PayPal actions always remain deterministic.")
     if result["privacy"]["llm_bypassed"]:
         st.error("Security containment activated: external LLM bypassed and human review required.")
 

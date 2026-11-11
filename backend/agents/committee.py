@@ -11,7 +11,7 @@ from backend.guardrails import (
     redact_sensitive_text,
     validate_case,
 )
-from backend.llm_clients import generate_explanation
+from backend.llm_clients import default_provider, generate_explanation_detail
 from backend.memory import JSONMemoryStore
 from backend.model import DenialRiskModel
 from backend.rag import PolicyRAG
@@ -50,12 +50,13 @@ def _position(agent: str, stance: str, confidence: float, evidence: list[str], r
 
 def run_pipeline(
     raw_case: dict[str, Any],
-    provider: str = "Local Expert System",
+    provider: str | None = None,
     provider_model: str | None = None,
     progress_callback: ProgressCallback | None = None,
     persist: bool = True,
     memory_store: JSONMemoryStore | None = None,
 ) -> dict[str, Any]:
+    provider = provider or default_provider()
     started_at = datetime.now(timezone.utc).isoformat()
     run_id = str(uuid.uuid4())
     store = memory_store or JSONMemoryStore()
@@ -232,11 +233,17 @@ def run_pipeline(
         explanation_provider = "Deterministic guardrail explanation (LLM bypassed)"
         explanation_model = "deterministic-guardrail"
         usage_dict = None
+        explanation_attempted = explanation_fallback = False
     else:
-        narrative, llm_warning, explanation_model, usage_dict = generate_explanation(
-            provider, explanation_context, model=provider_model
-        )
-        explanation_provider = provider
+        explanation = generate_explanation_detail(provider, explanation_context, model=provider_model)
+        narrative = explanation["text"]
+        llm_warning = explanation["warning"]
+        explanation_model = explanation["model"]
+        usage_dict = explanation["usage"]
+        # Label the provider that actually produced the text, not the one requested.
+        explanation_provider = explanation["provider_used"]
+        explanation_attempted = explanation["attempted"]
+        explanation_fallback = explanation["fallback"]
     _emit(progress_callback, "arbiter", "complete", "Deterministic explanation locked with evidence review findings")
 
     _emit(progress_callback, "memory", "running", "Searching JSON memory for similar reviewed scenarios")
@@ -273,6 +280,8 @@ def run_pipeline(
         "narrative": narrative,
         "explanation_provider": explanation_provider,
         "explanation_model": explanation_model,
+        "explanation_attempted": explanation_attempted,
+        "explanation_fallback": explanation_fallback,
         "token_usage": usage_dict,
         "data_source": case.get("data_source", "manual_or_synthetic"),
         "llm_warning": llm_warning,

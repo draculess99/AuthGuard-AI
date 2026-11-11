@@ -7,6 +7,7 @@ from typing import Any
 from flask import Flask, jsonify, request
 
 from backend.agents.committee import PIPELINE_STAGES, run_pipeline
+from backend.llm_clients import default_provider
 from backend.memory import JSONMemoryStore
 from backend.model import DenialRiskModel
 from backend.paypal import PayPalSandboxClient
@@ -37,7 +38,7 @@ def create_app() -> Flask:
     def process_case() -> Any:
         payload = request.get_json(silent=True) or {}
         case = payload.get("case") or payload
-        provider = payload.get("provider", "Local Expert System")
+        provider = payload.get("provider") or default_provider()
         provider_model = payload.get("provider_model") or payload.get("model")
         try:
             return jsonify(

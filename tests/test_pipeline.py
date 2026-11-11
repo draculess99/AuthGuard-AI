@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 
 from backend.agents.committee import run_pipeline
 from backend.memory import JSONMemoryStore
@@ -32,15 +33,19 @@ def test_injection_bypasses_llm(tmp_path: Path):
     assert result["human_review_required"] is True
 
 
-def test_selected_provider_model_is_recorded_on_local_fallback(tmp_path: Path):
-    result = run_pipeline(
-        base_case(),
-        provider="Groq",
-        provider_model="llama-3.3-70b-versatile",
-        persist=False,
-        memory_store=JSONMemoryStore(tmp_path),
-    )
-    assert result["explanation_model"] == "llama-3.3-70b-versatile"
+def test_failed_groq_call_records_local_fallback_when_enabled(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("AUTHGUARD_ENABLE_GROQ", "true")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key-not-real")
+    with patch("backend.llm_clients.call_groq", side_effect=TimeoutError):
+        result = run_pipeline(
+            base_case(),
+            provider="Groq",
+            provider_model="openai/gpt-oss-120b",
+            persist=False,
+            memory_store=JSONMemoryStore(tmp_path),
+        )
+    assert result["explanation_model"] == "deterministic-local"
+    assert result["explanation_provider"] == "Local Expert System"
     assert result["llm_warning"]
 
 
@@ -98,14 +103,17 @@ def test_blockers_route_to_documentation_hold_regardless_of_committee(tmp_path: 
                for reason in result["guardrail_reasons"])
 
 
-def test_narrative_is_canonical_deterministic_when_groq_unavailable(tmp_path: Path):
+def test_narrative_is_canonical_deterministic_when_groq_unavailable(tmp_path: Path, monkeypatch):
     """Prove narrative falls back to canonical deterministic explanation on Groq failure."""
-    result = run_pipeline(
-        base_case(),
-        provider="Groq",
-        persist=False,
-        memory_store=JSONMemoryStore(tmp_path),
-    )
+    monkeypatch.setenv("AUTHGUARD_ENABLE_GROQ", "true")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key-not-real")
+    with patch("backend.llm_clients.call_groq", side_effect=ConnectionError):
+        result = run_pipeline(
+            base_case(),
+            provider="Groq",
+            persist=False,
+            memory_store=JSONMemoryStore(tmp_path),
+        )
 
     # Should have warning about Groq unavailability
     assert result["llm_warning"] is not None
@@ -138,9 +146,10 @@ def test_human_review_gate_unaffected_by_committee_or_groq(tmp_path: Path):
     assert result_local["review_status"] == "PENDING_REQUIRED_REVIEW"
 
 
-def test_groq_empty_response_uses_canonical_deterministic_explanation(tmp_path: Path):
+def test_groq_empty_response_uses_canonical_deterministic_explanation(tmp_path: Path, monkeypatch):
     """Prove Groq returning empty output falls back to canonical deterministic explanation."""
-    from unittest.mock import patch
+    monkeypatch.setenv("AUTHGUARD_ENABLE_GROQ", "true")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key-not-real")
 
     def mock_empty_groq(prompt: str, model: str | None = None) -> tuple[str, str, dict]:
         return "", "llama-3.3-70b-versatile", None
@@ -162,9 +171,10 @@ def test_groq_empty_response_uses_canonical_deterministic_explanation(tmp_path: 
     assert result["decision"] in result["narrative"]
 
 
-def test_groq_contradictory_route_uses_canonical_deterministic_explanation(tmp_path: Path):
+def test_groq_contradictory_route_uses_canonical_deterministic_explanation(tmp_path: Path, monkeypatch):
     """Prove Groq output claiming contradictory route falls back to canonical deterministic explanation."""
-    from unittest.mock import patch
+    monkeypatch.setenv("AUTHGUARD_ENABLE_GROQ", "true")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key-not-real")
 
     def mock_contradictory_groq(prompt: str, model: str | None = None) -> tuple[str, str, dict]:
         # Groq response claims denial when the locked route should be READY_FOR_SUBMISSION_REVIEW

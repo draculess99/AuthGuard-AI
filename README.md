@@ -33,7 +33,7 @@
 1. **Case intake:** User or external data source provides structured authorization case (synthetic or external de-identified data).
 2. **Deterministic route locked:** Deterministic expert rules, fixed XGBoost thresholds, and guardrails establish the workflow decision before explanation.
 3. **Evidence review panel critique:** Specialist agents explain the locked route and provide critique (explanation and audit only; cannot alter routing).
-4. **Optional LLM rephrasing:** Groq or Gemini may rephrase the canonical explanation if configured; output is validated and falls back to canonical if invalid.
+4. **Optional LLM rephrasing:** Groq (disabled by default; enabled only with `AUTHGUARD_ENABLE_GROQ`) may rephrase the canonical explanation; output is validated and any failure falls back to the deterministic explanation. See [Optional Groq Explanation Layer](#optional-groq-explanation-layer).
 5. **Named human review:** Qualified reviewer reads the locked route, panel findings, and optional explanation. They decide whether to approve the case for submission or request additional evidence.
 6. **Payment approval (if demo):** Reviewer explicitly approves the fixed synthetic patient-pay amount via checkbox and action button, recorded in audit log.
 7. **PayPal Sandbox (if approved):** Reviewer creates order, completes buyer approval in Sandbox, and captures payment. All actions are human initiated and timestamped.
@@ -127,7 +127,7 @@ Run the complete test suite to verify the installation:
 python -m pytest -q
 ```
 
-All 52 tests should pass, including PayPal Sandbox integration tests.
+All 176 tests should pass, including PayPal Sandbox integration tests and the optional Groq toggle/fallback tests. No test makes a real Groq or PayPal network request.
 
 ### Update an Existing Checkout
 
@@ -231,7 +231,7 @@ Keep **Synthetic Demos** selected (the **Use live / external dataset** switch st
 | Card | What it means |
 |---|---|
 | **Final routing** | The guardrail-locked route. For the clean case this is `READY FOR SUBMISSION REVIEW`. |
-| **Denial risk** | The XGBoost denial-risk score after rule adjustments, with its risk band (about 20.9%, Low, for the clean case). |
+| **Denial risk** | The XGBoost denial-risk score after rule adjustments, with its authorization denial-risk band (about 20.9%, Low, for the clean case). This is a payer-denial score, not clinical, medical, patient, or complication risk. |
 | **Panel tally** | How many of the six panel members said SUPPORT, OPPOSE, or CAUTION. The clean case shows **4 SUPPORT · 0 OPPOSE · 2 CAUTION**. This is advisory and does not change the route. |
 | **Human gate** | Whether qualified human review is **REQUIRED** or **OPTIONAL**. The clean case shows OPTIONAL, but a specialist review is still recommended before any submission. |
 
@@ -353,6 +353,56 @@ The walkthrough uses nine screenshots in total. Screenshots must never show cred
 
 ---
 
+## Optional Groq Explanation Layer
+
+Groq can optionally rephrase the deterministic explanation. It is **explanation-only** and **disabled by default**.
+
+### Configuration
+
+Set these in your private `.env` (placeholders are in `.env.example`; never commit real keys):
+
+```env
+AUTHGUARD_ENABLE_GROQ=false
+GROQ_API_KEY=
+GROQ_MODEL=openai/gpt-oss-120b
+```
+
+| Variable | Meaning |
+|----------|---------|
+| `AUTHGUARD_ENABLE_GROQ` | Master switch. Missing or any other value means disabled. `1`, `true`, `yes`, or `on` (case-insensitive) enables Groq. |
+| `GROQ_API_KEY` | Your Groq key. Never displayed by the application. |
+| `GROQ_MODEL` | Model to use. Default `openai/gpt-oss-120b`; `openai/gpt-oss-20b` and `qwen/qwen3.8-27b` are alternatives. The retired `llama-3.3-70b-versatile` and `llama-3.1-8b-instant` are no longer offered. |
+
+Restart the application after changing `.env`. The service is Groq (`api.groq.com`), not xAI Grok.
+
+### Behavior
+
+- **Disabled (default):** Groq is never called, even if an API request asks for it. The deterministic explanation is used and labeled `Local Expert System`.
+- **Enabled with a key:** Groq receives only the already-locked route and panel findings and rephrases them. A valid response is used and labeled `Groq`.
+- **Automatic fallback:** a missing key, timeout, HTTP error, malformed or empty response, validation failure, or output that contradicts the locked route (or claims approval/submission) returns the canonical deterministic explanation, labeled `Local Expert System`.
+- **Semantic validation:** Groq is told to use the phrase "authorization denial risk" and to mention no other kind of risk, not even as a disclaimer, that XGBoost supplies a score but does not determine the route, that expert rules, thresholds, and guardrails lock the route, that the Evidence Review Panel is internal and advisory, and that the application never submits an authorization. A reply is rejected, and the deterministic explanation used instead, if it describes denial risk as clinical, medical, patient, or complication risk (an accurate statement that directly denies such an interpretation, for example "this score does not predict medical complications", is accepted; "not only", "not merely", and later affirmative clauses never count as a denial); says XGBoost alone generated or determined the route or recommendation; calls the panel independent or external; claims approval, grant, or submission; contradicts the locked route; or is empty, malformed, or too short. Validation is clause-aware: each clause is checked separately, and a negation is accepted only when it directly denies the specific claim ("XGBoost did not determine the route"). A negation elsewhere in the sentence, "not only", "not merely", "not just", or a contrast clause after `;`, `:`, `but`, `however`, or `because` never exempts a claim.
+- **Explanation-only authority:** routing, XGBoost risk scoring, guardrails, human-review requirements, the synthetic patient-pay amount, and PayPal order creation/capture are always deterministic and are never influenced by Groq.
+
+### Route and explanation are displayed separately
+
+- **DETERMINISTIC LOCKED ROUTE** is an application-controlled card showing the locked decision (for example, `READY FOR SUBMISSION REVIEW`). It states that expert rules, XGBoost risk thresholds, and guardrails locked the route.
+- **GROQ EXPLANATION SUMMARY** is shown below it, only when Groq text was actually used. Otherwise the section is titled **DETERMINISTIC EXPLANATION SUMMARY**. Provider, model, and data source appear beneath the text.
+- **Safe rendering:** the explanation text may come from an external model, so it is rendered as plain text with `st.text`, never interpolated into HTML rendered with `unsafe_allow_html`. A regression test checks that no HTML-rendered call references the narrative.
+- **What the numbers mean:** the risk level is an *authorization denial risk*, not clinical, medical, patient, or complication risk. XGBoost contributes the score, but expert rules, configured thresholds, and guardrails determine the route. The Evidence Review Panel is an internal advisory panel, not an independent or external one. The application does not itself submit an authorization; a qualified reviewer may review and submit the package if appropriate.
+
+### Labels shown in the dashboard
+
+| Situation | Label |
+|-----------|-------|
+| Enabled with key (green) | Groq enabled — optional explanation enhancement is active. Any Groq failure automatically uses the deterministic explanation. |
+| Enabled, key missing (yellow) | Groq enabled, but GROQ_API_KEY is missing — deterministic fallback is active. |
+| Disabled | Groq disabled — AuthGuard is using the deterministic explanation. |
+| Groq attempt fell back (yellow) | Groq fallback active — deterministic explanation used. |
+| Groq text used | Groq explanation enhancement used; the route remains deterministic. |
+| Always shown | Routing, risk scoring, guardrails, and PayPal actions always remain deterministic. |
+
+---
+
 ## API Overview
 
 ### Health Check
@@ -361,6 +411,8 @@ curl http://localhost:5008/health
 ```
 
 ### Process a Case
+`provider` is optional. When omitted, it defaults to `Groq` only if `AUTHGUARD_ENABLE_GROQ` is enabled, otherwise `Local Expert System`. The environment flag is authoritative: if Groq is disabled, a request for `"Groq"` is answered with the deterministic explanation and Groq is never called.
+
 ```bash
 POST /api/process
 Content-Type: application/json
@@ -480,12 +532,13 @@ Each specialist reports stance (`SUPPORT`, `OPPOSE`, `CAUTION`), confidence scor
 pytest -q
 ```
 
-The test suite covers:
+The suite currently has 176 passing tests. It covers:
 - PII redaction and prompt-injection detection
 - Deterministic rule evaluation
 - Multi-agent pipeline execution
 - XGBoost risk scoring
 - Groq/Gemini model availability and fallback behavior
+- Groq toggle (disabled by default), labeling of the provider actually used, deterministic fallback, and no real network calls
 - PayPal Sandbox order creation and capture (mocked HTTP calls)
 - Audit log recording
 - Case and memory persistence
@@ -521,11 +574,12 @@ PayPal Sandbox calls are mocked in tests. Live Streamlit usage requires valid `P
 - Panel cannot create or capture PayPal orders
 
 ### External LLMs (Groq/Gemini)
-- Optional presentation enhancements only
+- Optional presentation enhancements only; Groq is disabled by default
 - Receive the locked route and panel findings
 - May rephrase explanations for clarity
 - Cannot alter routing, human-review requirements, or payment amount
 - Output is validated; invalid output falls back to canonical explanation
+- See [Optional Groq Explanation Layer](#optional-groq-explanation-layer)
 
 ---
 
@@ -553,7 +607,9 @@ AuthGuard-Pay/
 ├── models/                         # Serialized XGBoost model
 ├── tests/
 │   ├── test_pipeline.py            # Pipeline, routing order, and dashboard tests
-│   └── test_paypal.py              # PayPal integration tests
+│   ├── test_groq_toggle.py         # Optional Groq toggle, labels, and fallback tests
+│   ├── test_paypal.py              # PayPal integration tests
+│   └── conftest.py                 # Isolates tests from .env and blocks real network calls
 ├── .env                            # Configuration (not in repo)
 ├── .env.example                    # Configuration template
 ├── requirements.txt                # Python dependencies
