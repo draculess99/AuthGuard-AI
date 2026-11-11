@@ -9,10 +9,38 @@
 
 ## Project Links
 
-- **Live Demo:** https://healthcareaiother-production.up.railway.app/authguard
+- **Live Demo:** https://web-production-b864c99d.up.railway.app
 - **GitHub Repository:** https://github.com/draculess99/AuthGuard-AI/
 - **LinkedIn:** https://www.linkedin.com/in/gammaconsult/
 - **Portfolio:** https://draculess99.github.io/
+
+---
+
+## Start Here — Choose One Path
+
+| Goal | Start here | What you need |
+|---|---|---|
+| **Try the deployed demonstration** | Open the [Live Demo](https://web-production-b864c99d.up.railway.app), then follow [Complete Demonstration Walkthrough](#complete-demonstration-walkthrough-local-or-railway). | Nothing for the evidence-review portion. A PayPal **Personal Sandbox buyer** is required only for the optional payment portion. |
+| **Run everything locally** | Follow [Run from the PayPal Feature Branch](#run-from-the-paypal-feature-branch), then follow the same walkthrough using `http://localhost:8501`. | Python, the repository, private `.env`, and optional Sandbox credentials. |
+| **Understand the design first** | Read [Core Workflow](#core-workflow), [System Architecture](#system-architecture), and [Pipeline Stages](#pipeline-stages). | No setup. |
+| **Test without using PayPal** | Run the pipeline and stop after step F of the walkthrough. | No Sandbox buyer approval or payment capture. |
+
+> **The shortest successful demo path:** run **Clean imaging request** → read the locked route and explanation → enter the supplied review rationale → **Approve package** → record synthetic payment approval → create **one** Sandbox order → approve it in the new PayPal tab → close the returned duplicate AuthGuard tab → capture from the original tab → verify the four audit actions.
+
+### Table of Contents
+
+- [Why PayPal + AI](#why-paypal--ai)
+- [Core Workflow](#core-workflow)
+- [System Architecture](#system-architecture)
+- [PayPal Sandbox Workflow](#paypal-sandbox-workflow)
+- [Run from the PayPal Feature Branch](#run-from-the-paypal-feature-branch)
+- [Run Locally](#run-locally)
+- [Complete Demonstration Walkthrough](#complete-demonstration-walkthrough-local-or-railway)
+- [Troubleshooting the Demo](#troubleshooting-the-demo)
+- [Optional Groq Explanation Layer](#optional-groq-explanation-layer)
+- [API Overview](#api-overview)
+- [Testing](#testing)
+- [Safety, Limitations, and Non-Goals](#safety-limitations-and-non-goals)
 
 ---
 
@@ -183,9 +211,29 @@ python app.py
 
 ---
 
-## Complete Local Demonstration Walkthrough
+## Complete Demonstration Walkthrough (Local or Railway)
 
-This walkthrough takes you from a clean start to a completed PayPal **Sandbox** payment, one step at a time. It uses only synthetic data. **No real money, patient, clinical decision, or coverage decision is involved.**
+This walkthrough takes you from a clean start to a completed PayPal **Sandbox** payment, one step at a time. It works with either the deployed Railway application or a local checkout. It uses only synthetic data. **No real money, real patient information, clinical decision, or coverage decision is involved.**
+
+### Do-Not-Get-Lost Progress Checklist
+
+Keep this table open while demonstrating the application. Complete one row before moving to the next.
+
+| Done | Stage | Where you are | Expected evidence | Important warning |
+|---|---|---|---|---|
+| ☐ | 1. Open | Railway live URL or `localhost:8501` | AuthGuard intake form and Live Agent Pipeline | Use synthetic mode. |
+| ☐ | 2. Process | Main intake page | “AuthGuard processing complete” and populated result cards | Wait for all stages to finish. |
+| ☐ | 3. Understand | Result card and explanation area | `READY FOR SUBMISSION REVIEW`, Low authorization denial risk, route/explanation provider label | Groq may explain; it cannot change the route. |
+| ☐ | 4. Inspect | Evidence Review Panel and other tabs | 4 SUPPORT, 0 OPPOSE, 2 CAUTION for the clean case | Panel findings are internal and advisory. |
+| ☐ | 5. Review | **Human Review** tab | Green “Human decision saved” message | Use the sample rationale below. |
+| ☐ | 6. Approve amount | **Synthetic Patient-Pay Demo**, Step 1 | Green “Approval recorded” message | This is synthetic approval only. |
+| ☐ | 7. Create order | Same tab, Step 2 | One order ID and PayPal approval link | Click **Create Sandbox Order once**. |
+| ☐ | 8. Buyer approval | New PayPal Sandbox tab | PayPal confirmation followed by a redirect | Use a Personal Sandbox buyer, never a real PayPal account. |
+| ☐ | 9. Return | Original AuthGuard tab | The original tab still shows the pending order | Close the redirected duplicate AuthGuard tab. Do not refresh the original. |
+| ☐ | 10. Capture | Original AuthGuard tab, Step 4 | Green capture message and capture ID | Click **Capture Sandbox Payment once**. |
+| ☐ | 11. Audit | **Memory & Audit** tab | Four current-run actions ending in `PAYPAL_CAPTURED` / `COMPLETED` | Screenshot 8B is the authoritative current-run view. |
+
+**You are finished when the current run contains all four actions:** `APPROVE_PACKAGE_FOR_SUBMISSION`, `PAYMENT_APPROVED`, `PAYPAL_ORDER_CREATED`, and `PAYPAL_CAPTURED` with capture status `COMPLETED`.
 
 ### How It Works (Plain Language)
 
@@ -199,7 +247,9 @@ This walkthrough takes you from a clean start to a completed PayPal **Sandbox** 
 
 #### A. Switch to the correct branch and start the application
 
-Open PowerShell in your AuthGuard-AI checkout. First-time setup is described in [Run from the PayPal Feature Branch](#run-from-the-paypal-feature-branch).
+**Railway users:** skip this step and open the [Live Demo](https://web-production-b864c99d.up.railway.app).
+
+**Local users:** open PowerShell in your AuthGuard-AI checkout. First-time setup is described in [Run from the PayPal Feature Branch](#run-from-the-paypal-feature-branch).
 
 ```powershell
 git switch feature/paypal-authguard
@@ -212,7 +262,7 @@ python app.py
 
 #### B. Open the dashboard
 
-Go to **http://localhost:8501**. You should see the **AUTHGUARD AI PAYPAL** header, the intake form, and the Live Agent Pipeline.
+Open either the [Railway Live Demo](https://web-production-b864c99d.up.railway.app) or **http://localhost:8501** for a local run. You should see the **AUTHGUARD AI PAYPAL** header, the intake form, and the Live Agent Pipeline.
 
 ![AuthGuard Pay dashboard with the intake form and Live Agent Pipeline](docs/images/paypal/01-authguard-pay-dashboard.png)
 
@@ -234,6 +284,13 @@ Keep **Synthetic Demos** selected (the **Use live / external dataset** switch st
 | **Denial risk** | The XGBoost denial-risk score after rule adjustments, with its authorization denial-risk band (about 20.9%, Low, for the clean case). This is a payer-denial score, not clinical, medical, patient, or complication risk. |
 | **Panel tally** | How many of the six panel members said SUPPORT, OPPOSE, or CAUTION. The clean case shows **4 SUPPORT · 0 OPPOSE · 2 CAUTION**. This is advisory and does not change the route. |
 | **Human gate** | Whether qualified human review is **REQUIRED** or **OPTIONAL**. The clean case shows OPTIONAL, but a specialist review is still recommended before any submission. |
+
+Immediately below the cards, keep the two different concepts separate:
+
+- **DETERMINISTIC LOCKED ROUTE** is the authoritative workflow result. Rules, configured XGBoost thresholds, and guardrails locked it before an explanation was generated.
+- **GROQ EXPLANATION SUMMARY** appears only when Groq successfully rephrased the canonical explanation. Otherwise the application shows **DETERMINISTIC EXPLANATION SUMMARY**.
+- In **Raw structured result**, the explanation text is stored in `narrative`. The fields `explanation_provider`, `explanation_model`, `explanation_attempted`, `explanation_fallback`, and `llm_warning` show exactly which explanation path was used.
+- A yellow Groq fallback message is safe: the deterministic route and canonical explanation remain available, and the rest of the demonstration may continue.
 
 #### E. Review the tabs
 
@@ -257,6 +314,10 @@ Click through each tab under the result cards:
 1. Open the **Human Review** tab.
 2. Enter a **reviewer name / role** (the default is fine) and a short **review rationale**.
 3. Click **Approve package**. A green message confirms the decision was saved.
+
+Copy-ready rationale for the **Clean imaging request**:
+
+> Reviewed the synthetic evidence package. The guardrail-locked route, low authorization denial-risk score, complete documentation, and internal advisory panel findings support proceeding to the PayPal Sandbox demonstration. This approval applies only to synthetic test data and does not constitute a clinical, coverage, authorization, or real-payment decision.
 
 This records an **internal portfolio workflow action** in the audit log. It does **not** submit anything to a payer.
 
@@ -285,16 +346,26 @@ The server will not create an order unless a matching `PAYMENT_APPROVED` record 
 1. Click **Open PayPal Sandbox Approval**. It opens PayPal Sandbox in a new tab.
 2. Sign in with a **PayPal Personal Sandbox buyer account** (created in your developer.paypal.com Sandbox accounts, never your real PayPal account).
 3. Choose the simulated funding source that the Sandbox account provides.
-4. Review the order and click **Pay Now** (or **Approve**).
+4. Click **Review Order** when PayPal presents it. **About payment methods** is only an informational link and does not advance the order.
+5. Review the simulated order and click **Pay Now** (or **Approve**, depending on PayPal's current wording).
 
 **No real money moves.** Sandbox accounts, balances, and cards are simulated by PayPal.
 
+**If you cannot remember the Sandbox buyer login:**
+
+1. Open [developer.paypal.com/dashboard](https://developer.paypal.com/dashboard/) in a separate tab and make sure **Sandbox** mode is selected.
+2. Open **Sandbox accounts**.
+3. Select an account whose type is **Personal**. Do not use the Business account as the buyer.
+4. Open **View/Edit account** to see its generated email and change or retrieve the test password.
+5. Use those Sandbox credentials only on `sandbox.paypal.com`. They are unrelated to your real PayPal login.
+
 #### I. Capture the payment
 
-1. After approval, PayPal redirects to `localhost` (the return URL). Close that redirected tab and **go back to your original AuthGuard Streamlit tab**, so the pending order is not lost (see Troubleshooting).
-2. Tick **I have completed PayPal Sandbox buyer approval**.
-3. Click **Capture Sandbox Payment** **exactly once**. A green "Payment captured" message shows the capture ID.
-4. The capture status is **COMPLETED**. You can see it in the `capture_status` column of the audit table in step J.
+1. After approval, PayPal redirects the **PayPal tab** to the configured AuthGuard return URL. Locally that is normally `localhost`; on Railway it is the deployed application. You will now see two AuthGuard tabs. **This is expected.**
+2. Close the newly redirected AuthGuard tab and **go back to the original AuthGuard Streamlit tab**, because that original tab holds the pending order in its Streamlit session. Do not refresh it.
+3. Tick **I have completed PayPal Sandbox buyer approval**.
+4. Click **Capture Sandbox Payment** **exactly once**. A green "Payment captured" message shows the capture ID.
+5. The capture status is **COMPLETED**. You can see it in the `capture_status` column of the audit table in step J.
 
 ![Buyer approval box checked and the Capture Sandbox Payment button enabled](docs/images/paypal/06-paypal-sandbox-approval.png)
 
@@ -344,11 +415,14 @@ The walkthrough uses nine screenshots in total. Screenshots must never show cred
 ### Troubleshooting the Demo
 
 - **Use a PayPal Personal Sandbox buyer.** Sign in only with a Sandbox buyer account from developer.paypal.com, never a real PayPal account.
+- **Two AuthGuard tabs after PayPal approval are expected.** PayPal opened in a new tab and redirected that tab back to AuthGuard. Close the newly redirected tab and continue in the original tab that created the order.
 - **Streamlit reruns on every interaction.** If the page jumps to another tab, reopen the relevant tab (for example **Human Review**) and check for the green saved message.
 - **Do not create or capture the same order repeatedly.** Click **Create Sandbox Order** once and **Capture Sandbox Payment** once. A captured order cannot be captured again.
 - **Keep the original Streamlit session while an order is pending.** The order ID is held in that browser tab's session. Reloading the page, or using the tab PayPal redirects to, starts a new session and the pending order will not be shown.
 - **Check the Flask API.** Open **http://localhost:5008/health**. It should return `"status": "ok"`.
-- **`PAYPAL_MODE` must be `sandbox`.** Any other value leaves PayPal unconfigured. The optional `PAYPAL_RETURN_URL` and `PAYPAL_CANCEL_URL` default to `http://localhost:8501`.
+- **`PAYPAL_MODE` must be `sandbox`.** Any other value leaves PayPal unconfigured. Locally, the optional `PAYPAL_RETURN_URL` and `PAYPAL_CANCEL_URL` normally point to `http://localhost:8501`; a hosted deployment must use its public HTTPS URL.
+- **PayPal stays on a spinner or does not advance.** Confirm you clicked **Review Order**, not **About payment methods**. If needed, reopen the approval link in an incognito window and sign in with the Personal Sandbox buyer.
+- **Groq falls back.** A yellow fallback label means the external explanation was unavailable or rejected. The locked route is still deterministic and the demonstration can continue.
 - **Never put credentials in README.md or screenshots.** Keep them in `.env`, which is ignored by Git.
 
 ---
@@ -586,7 +660,7 @@ PayPal Sandbox calls are mocked in tests. Live Streamlit usage requires valid `P
 ## Project Structure
 
 ```
-AuthGuard-Pay/
+AuthGuard-AI/
 ├── app.py                          # Entry point (Flask + Streamlit)
 ├── backend/
 │   ├── agents/committee.py         # Pipeline orchestrator
