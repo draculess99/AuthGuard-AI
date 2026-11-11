@@ -457,6 +457,18 @@ if process:
         side_console.markdown(console_html(st.session_state.console_logs, False), unsafe_allow_html=True)
         st.error(str(exc))
 
+REVIEW_TABS = [
+    "🗣️ Evidence Review Panel", "🧠 Evidence & RAG", "📈 XGBoost", "🛡️ Guardrails",
+    "👤 Human Review", "🧾 Memory & Audit",
+]
+HUMAN_REVIEW_TAB = REVIEW_TABS[4]
+
+
+def stay_on_human_review() -> None:
+    """on_click callback: keep the Human Review workspace selected across the rerun."""
+    st.session_state["active_review_tab"] = HUMAN_REVIEW_TAB
+
+
 result = st.session_state.result
 if result:
     st.divider()
@@ -496,12 +508,24 @@ if result:
     else:
         st.success("💡 **NEXT STEPS:** The case has been routed automatically. You can review the evidence in the tabs below, or record an optional decision in the **Human Review** tab.")
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "🗣️ Evidence Review Panel", "🧠 Evidence & RAG", "📈 XGBoost", "🛡️ Guardrails",
-        "👤 Human Review", "🧾 Memory & Audit"
-    ])
+    # st.tabs() resets to its first tab on every rerun, so the workspace is a keyed radio instead.
+    # It defaults to the first workspace only for a new run; a rerun keeps the selection.
+    if st.session_state.get("active_review_run_id") != result["run_id"]:
+        st.session_state["active_review_run_id"] = result["run_id"]
+        st.session_state["active_review_tab"] = REVIEW_TABS[0]
+    # Only the selected workspace renders, so keep Human Review inputs alive while another one is shown.
+    st.session_state.setdefault("review_reviewer", "Utilization Management Reviewer")
+    for _key in (
+        "review_reviewer", "review_rationale",
+        f"payment_approval_confirm_{result['run_id']}", f"buyer_approved_{result['run_id']}",
+    ):
+        if _key in st.session_state:
+            st.session_state[_key] = st.session_state[_key]
+    active_tab = st.radio(
+        "Review workspace", REVIEW_TABS, key="active_review_tab", horizontal=True, label_visibility="collapsed",
+    )
 
-    with tab1:
+    if active_tab == REVIEW_TABS[0]:
         for item in result["debate"]:
             evidence_html = ''.join(f"<li>{line}</li>" for line in item["evidence"])
             st.markdown(f'''
@@ -512,7 +536,7 @@ if result:
               <b>Recommendation:</b> {item['recommendation']}
             </div>''', unsafe_allow_html=True)
 
-    with tab2:
+    elif active_tab == REVIEW_TABS[1]:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("#### Rule-engine findings")
@@ -531,7 +555,7 @@ if result:
             else:
                 st.info("No matching local policy chunk was retrieved.")
 
-    with tab3:
+    elif active_tab == REVIEW_TABS[2]:
         model_result = result["model"]
         st.progress(float(model_result["denial_probability"]), text=f"Denial probability {model_result['denial_probability']:.1%}")
         signals = pd.DataFrame(model_result["top_signals"])
@@ -561,16 +585,19 @@ if result:
         m4.metric("Recall", metrics.get("recall"))
         st.warning("The bundled XGBoost model is trained on synthetic proxy outcomes and demonstrates integration—not clinical or payer validity.")
 
-    with tab4:
+    elif active_tab == REVIEW_TABS[3]:
         st.markdown("#### Non-negotiable controls")
         st.write(result["guardrail_reasons"] or ["No escalation-specific guardrail reason was added."])
         st.json(result["privacy"], expanded=False)
         st.markdown("- LLM output cannot alter the decision.\n- Missing required evidence cannot be auto-cleared.\n- Urgent, high-risk, and injection-flagged cases require human review.\n- The app never submits to a payer or claims an approval.")
 
-    with tab5:
+    elif active_tab == HUMAN_REVIEW_TAB:
         st.markdown("#### Qualified reviewer action")
-        reviewer = st.text_input("Reviewer name / role", value="Utilization Management Reviewer")
-        rationale = st.text_area("Review rationale", placeholder="Document why you approved, rejected, or requested more evidence.")
+        reviewer = st.text_input("Reviewer name / role", key="review_reviewer")
+        rationale = st.text_area(
+            "Review rationale", key="review_rationale",
+            placeholder="Document why you approved, rejected, or requested more evidence.",
+        )
         b1, b2, b3 = st.columns(3)
 
         def save_action(action: str) -> None:
@@ -582,11 +609,11 @@ if result:
             })
             st.success(f"Human decision saved: {action}")
 
-        if b1.button("✅ Approve package", use_container_width=True):
+        if b1.button("✅ Approve package", use_container_width=True, on_click=stay_on_human_review):
             save_action("APPROVE_PACKAGE_FOR_SUBMISSION")
-        if b2.button("📎 Request evidence", use_container_width=True):
+        if b2.button("📎 Request evidence", use_container_width=True, on_click=stay_on_human_review):
             save_action("REQUEST_ADDITIONAL_EVIDENCE")
-        if b3.button("⛔ Reject / reroute", use_container_width=True):
+        if b3.button("⛔ Reject / reroute", use_container_width=True, on_click=stay_on_human_review):
             save_action("REJECT_OR_REROUTE")
         st.caption("This records a portfolio workflow decision. It does not submit anything to a payer.")
 
@@ -617,7 +644,7 @@ if result:
             approval_recorded = st.session_state.get(f"payment_approval_recorded_{result['run_id']}", False)
 
             if approval_confirmed and paypal_client.is_configured():
-                if st.button("✅ Record Synthetic Payment Approval", use_container_width=True, key=f"record_approval_{result['run_id']}"):
+                if st.button("✅ Record Synthetic Payment Approval", use_container_width=True, key=f"record_approval_{result['run_id']}", on_click=stay_on_human_review):
                     with st.spinner("Recording payment approval..."):
                         try:
                             resp = requests.post(
@@ -645,7 +672,7 @@ if result:
                 st.success("✅ **Approval recorded.** Proceed to order creation.")
                 st.markdown("**Step 2: Create Sandbox order**")
 
-                if st.button("📦 Create Sandbox Order", use_container_width=True, key=f"create_order_{result['run_id']}"):
+                if st.button("📦 Create Sandbox Order", use_container_width=True, key=f"create_order_{result['run_id']}", on_click=stay_on_human_review):
                     with st.spinner("Creating PayPal Sandbox order..."):
                         try:
                             resp = requests.post(
@@ -693,7 +720,7 @@ if result:
 
                     if buyer_approved:
                         st.markdown("**Step 4: Capture payment**")
-                        if st.button("💰 Capture Sandbox Payment", use_container_width=True, key=f"capture_order_{result['run_id']}"):
+                        if st.button("💰 Capture Sandbox Payment", use_container_width=True, key=f"capture_order_{result['run_id']}", on_click=stay_on_human_review):
                             with st.spinner("Capturing PayPal Sandbox payment..."):
                                 try:
                                     resp = requests.post(
@@ -721,7 +748,7 @@ if result:
             else:
                 st.caption("Check the confirmation box above to enable the approval button.")
 
-    with tab6:
+    elif active_tab == REVIEW_TABS[5]:
         st.markdown("#### Similar JSON-memory cases")
         if not result.get("similar_cases"):
             st.info("No similar historical cases found in memory.")
